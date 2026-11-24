@@ -1,0 +1,30 @@
+# Render Blueprint: New > Blueprint > pick this repo. Fill the three secret values when Render asks.
+services:
+  - type: web
+    name: pmc-mace-sitewalk
+    runtime: node
+    plan: starter            # paid plan: needed for the disk that keeps the walk data
+    region: frankfurt
+    buildCommand: echo "no build step"
+    startCommand: node server.js
+    healthCheckPath: /health
+    autoDeploy: true
+    disk:
+      name: sitewalk-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: BASE
+        value: /uptown-phase-2
+      - key: ADMIN_NAME
+        value: Abeer
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATA_KEY
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PIN
+        sync: false
