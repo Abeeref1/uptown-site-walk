@@ -24,7 +24,7 @@ rep('<script>\n{\nconst $=', '<script>\n' + shim + '\n</script>\n<script>\n{\nco
 for a, b in [('Sign in to Claude to save your walk. You are seeing the 13 Nov record.', 'Sign in to save your walk.'), ('Sign in to Claude to save.', 'Sign in to save.'),
              ('Ask the owner to share it with you as Editor (or Contributor).', 'Ask the admin for a walker PIN.'), ('Ask the owner for edit access.', 'Ask the admin for a walker PIN.')]:
     s = s.replace(a, b)
-for a, b in [('Walk week of ', 'Walk of '), ('this week', 'this walk'), ('This week', 'This walk'), ('week of ', 'walk of '), ('Week of ', 'Walk of '), ('>Week<', '>Walk<')]:
+for a, b in [('the black <b>Next floor</b>', 'the purple <b>Next floor</b>'), ('Walk week of ', 'Walk of '), ('this week', 'this walk'), ('This week', 'This walk'), ('week of ', 'walk of '), ('Week of ', 'Walk of '), ('>Week<', '>Walk<')]:
     s = s.replace(a, b)
 # 4. send sheet and report: no email from here, team via PIN
 cut('<div class="howto"><b>Automatic email</b>', '<div class="tools"><button class="btn" type="button" id="sendx">Close</button>',
@@ -62,7 +62,7 @@ rep('/* ---------- start ---------- */', newwalk_js + '\n/* ---------- start ---
 rep('<div class="me" id="me"></div>', '<div class="me" id="me"></div>\n  <div class="swx" id="swx"></div>')
 rep('<div class="note hidden" id="note"></div>', '<div class="note hidden" id="note"></div>\n<div class="note hidden" id="swq"></div>')
 overlays = r"""<div class="over" id="swlogin"><form class="sheet swl" id="swf" autocomplete="on">
-  <div class="swlh"><img src="dmcc_white.png" alt="DMCC"><span></span><img src="logo.png" alt="Mace"></div>
+  <div class="swlh"><img src="dmcc.png" alt="DMCC"><span></span><img src="mace.png" alt="Mace"></div>
   <h2>Uptown Phase 2 site walk</h2><p class="src" style="margin:0">Type your password.</p>
   <label>Password<input name="pin" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="60" required style="font-size:22px;letter-spacing:.08em;text-align:center"></label>
   <button class="btn pur" type="submit" id="swbtn" style="min-height:52px;font-size:17px">Sign in</button>
@@ -90,7 +90,40 @@ css = r"""
 #swq{background:var(--orgbg);font-weight:600}
 @media(max-width:899px){.swx .swb{padding:4px 8px;font-size:13px}.swx #swteam{display:none}.btn.nwb{padding:6px 10px;font-size:14px;flex:none;min-height:38px}.week .wprog{display:none}.hcta .btn{width:100%}.week select{flex:1 1 auto!important;min-width:0;width:0}}
 """
+css += r'''
+/* ---------- light only: no black backgrounds ---------- */
+header.appbar{background:#fff;color:#1e1e1e;box-shadow:0 1px 0 var(--line)}
+header.appbar .brand .sep{background:#d9d6de}
+header.appbar .proj{color:#6b6b6b}
+nav.tabs{background:#f1eff4}
+nav.tabs button{color:#4a4a4a}
+nav.tabs button:hover{color:#1e1e1e}
+nav.tabs button[aria-current=page]{background:var(--pur2);color:#fff}
+header.appbar .me{color:#333}
+.btn.swb{color:#333;border-color:#dcd9e0;background:#fff}
+.hero{background:linear-gradient(135deg,#ffffff 0%,#f6eefa 50%,#ecdcf4 100%);color:#1e1e1e;border:1px solid #e6dcec;box-shadow:0 10px 28px rgba(110,42,131,.10)}
+.hero .sky{opacity:.10!important}.hero .sky g[fill]{fill:#6e2a83}.hero .sky g[stroke]{stroke:#fff}
+.eyebrow{color:#7a3a92}.hdate{color:#555}
+.btn.cta{background:var(--pur2);color:#fff;box-shadow:0 6px 16px rgba(110,42,131,.28)}.btn.cta small{color:#f1e2f7}
+.btn.ghost{background:#fff;color:#1e1e1e;border:1px solid #e1d6e8}
+.ring svg circle:first-child{stroke:#e8dcef}.ring .rt b{color:#1e1e1e}.ring .rt span{color:#666}
+.btn.next{background:linear-gradient(90deg,#6e2a83,#8b3aa3);color:#fff;box-shadow:0 8px 20px rgba(110,42,131,.28)}
+.btn.next small{color:#f0dff6}.btn.next .nn{color:#fff}
+.toast{background:#3b1d48}
+.chip[aria-pressed=true]{background:var(--pur2);border-color:var(--pur2);color:#fff}
+#swlogin{background:#f3f1f5}
+.swlh{background:#fff;border:1px solid var(--line)}.swlh span{background:#d9d6de}
+@media(max-width:899px){
+ nav.tabs{background:#fff!important;border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(0,0,0,.05)}
+ nav.tabs button{color:#777}
+ nav.tabs button[aria-current=page]{color:var(--pur2)}
+ nav.tabs button[aria-current=page] .ic{background:var(--pur2);color:#fff}
+}
+'''
 rep('</style>\n<script>new MutationObserver', css + '</style>\n<script>new MutationObserver')
+rep('<html lang="en">', '<html lang="en" data-theme="light">')
+rep('<meta name="theme-color" content="#141414">', '<meta name="theme-color" content="#ffffff">')
+rep('<div class="brand"><img src="dmcc_white.png" alt="DMCC"><span class="sep"></span><img src="logo.png" alt="Mace"></div>', '<div class="brand"><img src="dmcc.png" alt="DMCC"><span class="sep"></span><img src="mace.png" alt="Mace"></div>')
 rep('<title>Uptown Site Walk</title>', '<title>Uptown Phase 2 Site Walk</title>\n<link rel="manifest" href="manifest.webmanifest">')
 out = os.path.join(ROOT, 'public'); os.makedirs(out, exist_ok=True)
 open(os.path.join(out, 'index.html'), 'w').write(s)

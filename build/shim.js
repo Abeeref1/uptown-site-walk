@@ -62,7 +62,10 @@ function afterLogin(){try{localStorage.setItem('sw-me',JSON.stringify(ME))}catch
 document.addEventListener('submit',async e=>{if(e.target.id!=='swf')return;e.preventDefault();const el=e.target.elements,b=$('#swbtn');b.disabled=true;$('#swerr').textContent='';
   try{const j=await api('login',{method:'POST',body:JSON.stringify({pin:el.pin.value})});ME=j.user;el.pin.value='';afterLogin()}
   catch(x){$('#swerr').textContent=x.offline?'No signal. Try again when online.':x.message}finally{b.disabled=false}});
-const data=()=>ready.then(()=>fetch('api/data',{credentials:'same-origin'})).then(r=>{if(r.status===401){login();throw new Error('Sign in first.')}return r.json()}).then(d=>{window.P4D=d.p4d;return d.items});
+async function data(){await ready;for(let i=0;;i++){
+  try{const r=await fetch('api/data',{credentials:'same-origin'});if(r.status===401){login();await new Promise(z=>{const t=setInterval(()=>{if(ME){clearInterval(t);z()}},500)});continue}
+    if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();if(!d.items||!d.items.length)throw new Error('empty');window.P4D=d.p4d;const n=$('#swq');if(n&&n.dataset.c){n.textContent='';n.classList.add('hidden');delete n.dataset.c}return d.items}
+  catch(e){const n=$('#swq');if(n){n.textContent='Connecting to the server…';n.classList.remove('hidden');n.dataset.c='1'}await new Promise(z=>setTimeout(z,Math.min(15000,2000*(i+1))))}}}
 
 /* header tools: team, sign out, install */
 let deferred=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;tools()});
