@@ -1,0 +1,8 @@
+{
+  "name": "uptown-site-walk",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Mace site walk app for DMCC Uptown Phase 2",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=20" }
+}
