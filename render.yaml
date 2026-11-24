@@ -17,7 +17,7 @@ services:
       - key: DATA_DIR
         value: /data
       - key: BASE
-        value: /dmcc-uptown-phase-2
+        value: /uptown-phase-2
       - key: ADMIN_NAME
         value: Abeer
       - key: NODE_VERSION

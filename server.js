@@ -2,6 +2,7 @@
 // Serves the app under BASE, signs people in with a password (each person has their own), and keeps the walk data on a volume.
 'use strict';
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -11,6 +12,8 @@ const BASE = (process.env.BASE || '/uptown-phase-2').replace(/\/+$/, '');
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '.data');
 const PUB = path.join(__dirname, 'public');
 const TZ_OFFSET_H = 4; // Dubai
+// everything outside BASE goes to the program that already lives on the domain
+const OTHER = (process.env.OTHER_ORIGIN || '').replace(/\/+$/, '');
 fs.mkdirSync(path.join(DATA_DIR, 'photos'), { recursive: true });
 
 /* ---------- project data (encrypted in the repo) ---------- */
@@ -164,13 +167,32 @@ async function apiRoute(req, res, p, q) {
   return json(res, 404, { error: 'Not found.' });
 }
 
+/* ---------- pass-through to the other program ---------- */
+function proxy(req, res) {
+  const u = new URL(req.url, OTHER + '/'), lib = u.protocol === 'http:' ? http : https;
+  const h = { ...req.headers, host: u.host, 'x-forwarded-host': req.headers.host || '', 'x-forwarded-proto': 'https' };
+  const up = lib.request(u, { method: req.method, headers: h }, pr => {
+    const hd = { ...pr.headers };
+    if (hd.location) hd.location = String(hd.location).split(OTHER).join('');
+    if (hd['set-cookie']) hd['set-cookie'] = [].concat(hd['set-cookie']).map(c => c.replace(/;\s*Domain=[^;]*/i, ''));
+    delete hd['strict-transport-security'];
+    res.writeHead(pr.statusCode || 502, hd); pr.pipe(res);
+  });
+  up.on('error', () => { if (!res.headersSent) { res.writeHead(502, { 'Content-Type': 'text/plain' }); } res.end('The main site is not reachable right now.'); });
+  req.pipe(up);
+}
+
 /* ---------- server ---------- */
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x'); let p = decodeURIComponent(url.pathname);
     if (p === '/health') return send(res, 200, 'ok', 'text/plain');
-    if (p === '/' || p === BASE) { res.writeHead(302, { Location: BASE + '/' }); return res.end(); }
-    if (!p.startsWith(BASE + '/')) return send(res, 404, 'Not found', 'text/plain');
+    if (p === BASE) { res.writeHead(302, { Location: BASE + '/' }); return res.end(); }
+    if (!p.startsWith(BASE + '/')) {
+      if (OTHER) return proxy(req, res);
+      if (p === '/') { res.writeHead(302, { Location: BASE + '/' }); return res.end(); }
+      return send(res, 404, 'Not found', 'text/plain');
+    }
     p = p.slice(BASE.length + 1);
     if (p.startsWith('api/')) return await apiRoute(req, res, p.slice(4), url.searchParams);
     if (p.startsWith('_blob/')) {
