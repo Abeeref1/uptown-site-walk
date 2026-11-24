@@ -28,7 +28,7 @@ for a, b in [('Walk week of ', 'Walk of '), ('this week', 'this walk'), ('This w
     s = s.replace(a, b)
 # 4. send sheet and report: no email from here, team via PIN
 cut('<div class="howto"><b>Automatic email</b>', '<div class="tools"><button class="btn" type="button" id="sendx">Close</button>',
-    '<div class="howto"><b>Give it to the team</b><span>The admin presses <b>Team</b> at the top, adds the person, and sends the PIN on WhatsApp in one tap. Walkers fill, viewers only look.</span></div>\n  ')
+    '<div class="howto"><b>Give it to the team</b><span>The admin presses <b>Team</b> at the top, adds the name, and sends the password on WhatsApp in one tap. Walkers fill, viewers only look.</span></div>\n  ')
 cut('<h2 style="margin-top:16px">Email</h2>', "Only the owner and Editors change the addresses.</p>'}", '', incl_end=True)
 # 5. walks: the team starts a walk, entries belong to it
 rep("const ALL=()=>ITEMS.concat(EXTRA);", "const ALL=()=>ITEMS.concat(EXTRA);let WALKS={};\nconst walkList=()=>Object.values(WALKS).filter(w=>w&&w.id&&w.date).sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);")
@@ -63,14 +63,13 @@ rep('<div class="me" id="me"></div>', '<div class="me" id="me"></div>\n  <div cl
 rep('<div class="note hidden" id="note"></div>', '<div class="note hidden" id="note"></div>\n<div class="note hidden" id="swq"></div>')
 overlays = r"""<div class="over" id="swlogin"><form class="sheet swl" id="swf" autocomplete="on">
   <div class="swlh"><img src="dmcc_white.png" alt="DMCC"><span></span><img src="logo.png" alt="Mace"></div>
-  <h2>Uptown Phase 2 site walk</h2><p class="src" style="margin:0">Sign in with your email and the 6-digit PIN from the admin.</p>
-  <label>Email<input name="email" type="email" autocomplete="username" required inputmode="email"></label>
-  <label>PIN<input name="pin" type="password" autocomplete="current-password" inputmode="numeric" pattern="[0-9]*" maxlength="6" required></label>
+  <h2>Uptown Phase 2 site walk</h2><p class="src" style="margin:0">Type your password.</p>
+  <label>Password<input name="pin" type="password" autocomplete="current-password" inputmode="numeric" maxlength="40" required style="font-size:24px;letter-spacing:.2em;text-align:center"></label>
   <button class="btn pur" type="submit" id="swbtn" style="min-height:52px;font-size:17px">Sign in</button>
-  <p class="src" id="swerr" style="margin:0;color:var(--red);font-weight:600"></p><p class="src" style="margin:0">No PIN yet? Ask the site walk admin.</p></form></div>
+  <p class="src" id="swerr" style="margin:0;color:var(--red);font-weight:600"></p><p class="src" style="margin:0">No password yet? Ask the site walk admin.</p></form></div>
 <div class="over" id="swteamov"><div class="sheet" style="width:min(720px,100%)" role="dialog" aria-label="Team">
   <h2 style="margin:0;font:700 24px/1.1 'Barlow Semi Condensed',Barlow,sans-serif">Team</h2>
-  <form class="tools" id="swadd"><input name="email" type="email" placeholder="email@mace.com" required style="flex:1 1 200px"><input name="name" placeholder="Name" style="flex:1 1 140px"><select name="role"><option value="walker">Walker (fills)</option><option value="viewer">Viewer (looks)</option><option value="admin">Admin</option></select><button class="btn pur" type="submit">Add and make PIN</button></form>
+  <form class="tools" id="swadd"><input name="name" placeholder="Person's name" required style="flex:1 1 200px"><select name="role"><option value="walker">Walker (fills)</option><option value="viewer">Viewer (looks)</option><option value="admin">Admin</option></select><button class="btn pur" type="submit">Add and make password</button></form>
   <div id="swtmsg"></div><div id="swtbody" style="overflow-x:auto"></div>
   <div class="tools"><button class="btn" type="button" id="swtx">Close</button></div></div></div>
 <div class="over" id="swih"><div class="sheet" role="dialog" aria-label="Install"><h2 style="margin:0">Install the app</h2>

@@ -24,7 +24,5 @@ services:
         value: "22"
       - key: DATA_KEY
         sync: false
-      - key: ADMIN_EMAIL
-        sync: false
       - key: ADMIN_PIN
         sync: false

@@ -1,5 +1,5 @@
 // Uptown Phase 2 Site Walk: small web server with no dependencies (Node 20+).
-// Serves the app under BASE, signs people in with email + PIN, and keeps the walk data on a volume.
+// Serves the app under BASE, signs people in with a password (each person has their own), and keeps the walk data on a volume.
 'use strict';
 const http = require('http');
 const fs = require('fs');
@@ -58,16 +58,11 @@ function commit(op) { op.at = new Date().toISOString(); applyOp(op); op.seq = SE
 /* ---------- people ---------- */
 const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString('hex');
 const newPin = () => String(crypto.randomInt(0, 1e6)).padStart(6, '0');
-const norm = e => String(e || '').trim().toLowerCase();
-function upsertUser(email, name, pin, role) {
-  email = norm(email); const salt = crypto.randomBytes(8).toString('hex');
-  let u = USERS.find(x => x.email === email);
-  if (!u) { u = { email }; USERS.push(u); }
-  u.name = name || u.name || email.split('@')[0]; u.role = role || u.role || 'walker';
-  if (pin) { u.salt = salt; u.pin = hashPin(pin, salt); }
-  writeJSON('users.json', USERS); return u;
-}
-if (!USERS.length && process.env.ADMIN_EMAIL && process.env.ADMIN_PIN) upsertUser(process.env.ADMIN_EMAIL, process.env.ADMIN_NAME || 'Admin', process.env.ADMIN_PIN, 'admin');
+const pinOwner = pin => USERS.find(x => x.pin && hashPin(String(pin || '').trim(), x.salt) === x.pin);
+function setPin(u, pin) { u.salt = crypto.randomBytes(8).toString('hex'); u.pin = hashPin(pin, u.salt); }
+function uniquePin() { for (let i = 0; i < 50; i++) { const p = newPin(); if (!pinOwner(p)) return p; } throw new Error('No free PIN'); }
+// sign-in is a password (PIN) only: each person has their own, so saves still show who did them
+if (!USERS.length && process.env.ADMIN_PIN) { const a = { id: 'admin', name: process.env.ADMIN_NAME || 'Admin', role: 'admin' }; setPin(a, process.env.ADMIN_PIN); USERS.push(a); writeJSON('users.json', USERS); }
 // first walk, if none yet
 if (!Object.keys(DOCS.walks).length) {
   const d = new Date(Date.now() + TZ_OFFSET_H * 3600e3).toISOString().slice(0, 10);
@@ -77,9 +72,9 @@ function userOf(req) {
   const c = String(req.headers.cookie || '').split(/;\s*/).find(x => x.startsWith('swt='));
   const t = c ? decodeURIComponent(c.slice(4)) : null;
   const s = t && SESS[t]; if (!s) return null;
-  const u = USERS.find(x => x.email === s.email); return u ? { ...u, token: t } : null;
+  const u = USERS.find(x => x.id === s.uid); return u ? { ...u, token: t } : null;
 }
-const pub = u => ({ email: u.email, name: u.name, role: u.role });
+const pub = u => ({ id: u.id, name: u.name, role: u.role });
 
 /* ---------- http helpers ---------- */
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.css': 'text/css' };
@@ -96,7 +91,9 @@ function body(req, limit) {
   });
 }
 const tries = new Map();
-function limited(ip) { const now = Date.now(), t = (tries.get(ip) || []).filter(x => now - x < 60e3); t.push(now); tries.set(ip, t); return t.length > 8; }
+let allTries = [];
+function limited(ip) { const now = Date.now(), t = (tries.get(ip) || []).filter(x => now - x < 60e3); t.push(now); tries.set(ip, t);
+  allTries = allTries.filter(x => now - x < 60e3); allTries.push(now); return t.length > 8 || allTries.length > 40; }
 const cookie = (t, maxAge) => `swt=${encodeURIComponent(t)}; Path=${BASE || '/'}; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${process.env.NO_SECURE ? '' : '; Secure'}`;
 
 /* ---------- api ---------- */
@@ -105,9 +102,9 @@ async function apiRoute(req, res, p, q) {
   if (p === 'login' && req.method === 'POST') {
     if (limited(ip)) return json(res, 429, { error: 'Too many tries. Wait a minute.' });
     const b = JSON.parse((await body(req, 1e4)).toString() || '{}');
-    const u = USERS.find(x => x.email === norm(b.email));
-    if (!u || !u.pin || hashPin(String(b.pin || '').trim(), u.salt) !== u.pin) return json(res, 401, { error: 'Email or PIN is wrong.' });
-    const t = crypto.randomBytes(24).toString('hex'); SESS[t] = { email: u.email, at: Date.now() }; writeJSON('sessions.json', SESS);
+    const u = String(b.pin || '').trim().length >= 4 ? pinOwner(b.pin) : null;
+    if (!u) return json(res, 401, { error: 'Wrong password.' });
+    const t = crypto.randomBytes(24).toString('hex'); SESS[t] = { uid: u.id, at: Date.now() }; writeJSON('sessions.json', SESS);
     return json(res, 200, { user: pub(u) }, { 'Set-Cookie': cookie(t, 3600 * 24 * 180) });
   }
   const u = userOf(req);
@@ -115,7 +112,7 @@ async function apiRoute(req, res, p, q) {
   if (p === 'logout') { delete SESS[u.token]; writeJSON('sessions.json', SESS); return json(res, 200, { ok: true }, { 'Set-Cookie': cookie('', 0) }); }
   if (p === 'me') return json(res, 200, { user: pub(u) });
   if (p === 'data') return send(res, 200, PROJECT_JSON, 'application/json', { 'Cache-Control': 'private, max-age=300' });
-  if (p === 'names') { const o = {}; for (const x of USERS) o[x.email] = x.name; return json(res, 200, o); }
+  if (p === 'names') { const o = {}; for (const x of USERS) o[x.id] = x.name; return json(res, 200, o); }
   if (p === 'changes') {
     const since = +q.get('since') || 0; const seen = new Set(), docs = [];
     const list = since > 0 && since <= SEQ ? CHANGES.filter(c => c.seq > since) : CHANGES;
@@ -130,7 +127,7 @@ async function apiRoute(req, res, p, q) {
     if (b.col === 'settings' && u.role !== 'admin') return json(res, 403, { error: 'Admin only.', code: 'invalid_argument' });
     if (!['set', 'update', 'delete'].includes(b.op)) return json(res, 400, { error: 'Bad op.' });
     if (b.op === 'delete' && u.role !== 'admin') return json(res, 403, { error: 'Admin only.', code: 'invalid_argument' });
-    const seq = commit({ op: b.op, col: b.col, id: String(b.id), data: b.data || {}, by: u.email });
+    const seq = commit({ op: b.op, col: b.col, id: String(b.id), data: b.data || {}, by: u.id });
     return json(res, 200, { seq });
   }
   if (p === 'photo' && req.method === 'POST') {
@@ -144,15 +141,17 @@ async function apiRoute(req, res, p, q) {
     if (req.method === 'GET') return json(res, 200, USERS.map(pub));
     if (req.method === 'POST') {
       const b = JSON.parse((await body(req, 1e4)).toString() || '{}');
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(norm(b.email))) return json(res, 400, { error: 'Type a real email.' });
-      const pin = newPin(); const x = upsertUser(b.email, b.name, pin, ['admin', 'walker', 'viewer'].includes(b.role) ? b.role : 'walker');
-      for (const t in SESS) if (SESS[t].email === x.email) delete SESS[t]; writeJSON('sessions.json', SESS);
+      let x = b.id ? USERS.find(y => y.id === String(b.id)) : null;
+      if (!x) { const name = String(b.name || '').trim().slice(0, 60); if (!name) return json(res, 400, { error: 'Type the person\'s name.' });
+        x = { id: 'u' + Date.now().toString(36) + crypto.randomBytes(3).toString('hex'), name, role: ['admin', 'walker', 'viewer'].includes(b.role) ? b.role : 'walker' }; USERS.push(x); }
+      const pin = uniquePin(); setPin(x, pin); writeJSON('users.json', USERS);
+      for (const t in SESS) if (SESS[t].uid === x.id && t !== u.token) delete SESS[t]; writeJSON('sessions.json', SESS);
       return json(res, 200, { ...pub(x), pin });
     }
     if (req.method === 'DELETE') {
-      const e = norm(q.get('email')); if (e === u.email) return json(res, 400, { error: 'You cannot remove yourself.' });
-      USERS = USERS.filter(x => x.email !== e); writeJSON('users.json', USERS);
-      for (const t in SESS) if (SESS[t].email === e) delete SESS[t]; writeJSON('sessions.json', SESS);
+      const id = String(q.get('id') || ''); if (id === u.id) return json(res, 400, { error: 'You cannot remove yourself.' });
+      USERS = USERS.filter(x => x.id !== id); writeJSON('users.json', USERS);
+      for (const t in SESS) if (SESS[t].uid === id) delete SESS[t]; writeJSON('sessions.json', SESS);
       return json(res, 200, { ok: true });
     }
   }
