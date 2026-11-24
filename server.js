@@ -62,7 +62,13 @@ const pinOwner = pin => USERS.find(x => x.pin && hashPin(String(pin || '').trim(
 function setPin(u, pin) { u.salt = crypto.randomBytes(8).toString('hex'); u.pin = hashPin(pin, u.salt); }
 function uniquePin() { for (let i = 0; i < 50; i++) { const p = newPin(); if (!pinOwner(p)) return p; } throw new Error('No free PIN'); }
 // sign-in is a password (PIN) only: each person has their own, so saves still show who did them
-if (!USERS.length && process.env.ADMIN_PIN) { const a = { id: 'admin', name: process.env.ADMIN_NAME || 'Admin', role: 'admin' }; setPin(a, process.env.ADMIN_PIN); USERS.push(a); writeJSON('users.json', USERS); }
+// the admin password always follows ADMIN_PIN, so changing that variable changes the password
+if (process.env.ADMIN_PIN) {
+  let a = USERS.find(x => x.id === 'admin');
+  if (!a) { a = { id: 'admin', name: process.env.ADMIN_NAME || 'Admin', role: 'admin' }; USERS.push(a); }
+  if (!a.pin || hashPin(process.env.ADMIN_PIN, a.salt) !== a.pin) { setPin(a, process.env.ADMIN_PIN); for (const t in SESS) if (SESS[t].uid === 'admin') delete SESS[t]; writeJSON('sessions.json', SESS); }
+  a.role = 'admin'; writeJSON('users.json', USERS);
+}
 // first walk, if none yet
 if (!Object.keys(DOCS.walks).length) {
   const d = new Date(Date.now() + TZ_OFFSET_H * 3600e3).toISOString().slice(0, 10);
