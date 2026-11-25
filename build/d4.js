@@ -6,7 +6,7 @@ const dOf=n=>{const u=new Date(EP+n*DAY);return new Date(u.getUTCFullYear(),u.ge
 const PR={F:{name:'Finished design',col:'#0E6E73'},A:{name:'Actual (walk)',col:'#742781'},T:{name:'Target (R1)',idx:[0,1],col:'#c00000'},U:{name:'20 Nov update',idx:[4,5],col:'#1e1e1e'},B:{name:'Baseline',idx:[2,3],col:'#8A8178'}};
 const pcol=p=>p==='U'?'var(--ink)':p==='A'?'var(--pur)':PR[p].col;
 const LAYERS=[{k:'STR',name:'Structure',col:'#B8B2A7'},{k:'STA',name:'Stairs',col:'#7E776E'},{k:'FAC',name:'Façade',col:'#4F8FC9'},{k:'FIT',name:'Fit-out & MEP',col:'#0B5D63'},{k:'VT',name:'Lifts',col:'#6B4FA0'},{k:'LAND',name:'External',col:'#5E8C3A'}];
-const M={mode:'AT',show:{STR:true,STA:true,FAC:true,FIT:true,VT:true,LAND:true},under:false,ready:false,loading:null,pin:null,day:null,play:0,intro:0,shadowKey:''};
+const M={mode:'AT',show:{STR:true,STA:true,FAC:true,FIT:true,VT:true,LAND:true},focus:{b:'ALL',z:null,lv:null},under:false,ready:false,loading:null,pin:null,day:null,play:0,intro:0,shadowKey:''};
 const TOP={T3:22,T4:16};
 const ELO={T3:['Elevation (Long side T2 side) Grid T11 to T5','Elevation (Long side Zone 4 side) Grid T5 to T11','Elevation (Short side Zone 4 side) Grid TH to TL','Elevation (Short side Zone 3 side) Grid TL to TH'],
   T4:['Elevation (Long Side Zone 5 side) Grid TA to TG','Elevation (Long Side Zone 4 side) Grid TG to TA','Elevation (Short Side Zone 4 side) Grid T1 to T4','Elevation (Short Side Zone 4 side) Grid T4 to T1']};
@@ -80,7 +80,30 @@ function look(a,p){const L=a.layer;
     if(L==='FIT')return{col:C.FIT0.clone().lerp(C.FIT1,v),op:.55+.4*v};if(L==='VT')return{col:C.VT0.clone().lerp(C.VT1,v),op:.9};return{col:C.L0.clone().lerp(C.L1,v),op:.92}}
   if(L==='FAC')return{col:C.GHOST,op:.06,ghost:true};
   return null}
-function paint(p){for(const a of AREAS){const s=M.show[a.layer]?look(a,p):null;
+/* explorer: one building, zone or floor at a time */
+const BNAME={ALL:'Whole site',T3:'Tower 3',T4:'Tower 4',POD:'Podium',BASE:'Basements'};
+const ZNAME={Z1:'Zone 1 (T3)',Z2:'Zone 2 (T4)',Z3:'Zone 3',Z4:'Zone 4',Z5A:'Zone 5A',Z5B:'Zone 5B'};
+function meta(a){const p=a.key.split('/');a.zone=null;
+  if(p[0]==='T3'||p[0]==='T4'){a.bld=p[0];a.lv=p[1]}
+  else if(/^Z/.test(p[0])){a.zone=p[0];a.lv=p[1];a.bld=p[0]==='Z1'?'T3':p[0]==='Z2'?'T4':'POD'}
+  else if(p[0]==='POD'){a.bld='POD';a.lv=p[1]==='LAND'?'LAND':'ALL'}
+  else if(p[0]==='BR'){a.bld='POD';a.lv='GF'}else{a.bld='SITE';a.lv='GF'}}
+function elevOf(lv,b){if(lv==null||lv==='ALL'||lv==='VT')return null;if(lv==='ROOF')return b==='T4'?100.85:128.18;if(lv==='LAND')return 27;return G.levels[lv]??null}
+const aElev=a=>elevOf(a.lv,a.bld);
+function inScope(a){const f=M.focus;if(f.b==='ALL')return true;
+  if(f.b==='BASE')return /^B\d$/.test(a.lv)&&(!f.z||a.zone===f.z);
+  if(f.z&&a.zone!==f.z)return false;
+  return a.bld===f.b}
+function levelsFor(b){const L=n=>Array.from({length:n},(_,i)=>'L'+String(n-i).padStart(2,'0'));const P=['P05','P04','P03','P02','P01','GF','B1','B2','B3'];
+  return b==='T3'?['ROOF',...L(22),...P]:b==='T4'?['ROOF',...L(16),...P]:b==='POD'?P:b==='BASE'?['B1','B2','B3']:[]}
+const dimS=(s,cap)=>s&&({...s,op:Math.min(s.op,cap),part:true,ghost:true});
+function focusMod(a,s){const f=M.focus;if(!s||(f.b==='ALL'&&!f.lv))return s;const ins=inScope(a),e=aElev(a);
+  if(f.lv){const fe=elevOf(f.lv,f.b);
+    if(ins){if(a.lv===f.lv)return s;if(e==null)return a.layer==='VT'?dimS(s,.22):null;if(e>fe+.5)return null;return dimS(s,.26)}
+    if(e==null||e>fe+.5)return null;return a.layer==='STR'?{col:C.GHOST,op:.022,ghost:true}:null}
+  if(ins)return s;if(f.b==='BASE')return null;
+  return a.layer==='FAC'?{col:C.GHOST,op:.026,ghost:true}:null}
+function paint(p){for(const a of AREAS){const s=M.show[a.layer]?focusMod(a,look(a,p)):null;
   for(const e of a.els){const m=e.mesh;m.visible=!!s;if(!s)continue;
     if(s.real&&e.real){m.material=e.real;const op=s.part?s.op*(e.glass?.9:1):e.glass?.72:1;e.real.opacity=op;e.real.depthWrite=!e.glass&&op>.95;m.renderOrder=e.glass?3:op<1?2:0}
     else{m.material=e.tint;e.tint.color.copy(s.col);const op=e.glass?Math.min(s.op,.62):s.op;e.tint.opacity=op;e.tint.depthWrite=op>.6;
@@ -124,6 +147,7 @@ function build(data){const {head,pos,col,idx}=data;G=head;
       const geo=new T.BoxGeometry(w,y1-y0,d);const tint=new T.MeshStandardMaterial({transparent:true,roughness:.5});const mesh=new T.Mesh(geo,tint);
       mesh.position.set(x,(y0+y1)/2,z);mesh.rotation.y=-ang;mesh.updateMatrix();mesh.matrixAutoUpdate=false;scene.add(mesh);
       const a=area(k,'VT',`${t==='T3'?'Tower 3':'Tower 4'} · Lifts: ${k.split('/')[2].trim()}`);const e={mesh,real:null,tint,glass:false,a};mesh.userData.e=e;a.els.push(e)})}
+  for(const a of AREAS)meta(a);
   P.A.forEach((a,i)=>{for(let j=6;j<a.length;j++){const ar=AK[P.K[a[j]]];if(ar)ar.list.push(i)}});
   let lo=1e9,hi=-1e9;for(const a of P.A)for(const i of [0,2,4]){if(a[i]!=null&&a[i]<lo)lo=a[i];if(a[i+1]!=null&&a[i+1]>hi)hi=a[i+1]}SPAN=[Math.max(lo,day4(new Date(2026,10,20))),hi]}
 function skyEnv(){const pm=new T.PMREMGenerator(renderer),es=new T.Scene(),geo=new T.SphereGeometry(100,48,24),c=[],p=geo.attributes.position;
@@ -144,19 +168,33 @@ const walked=()=>AREAS.filter(a=>a.A!=null&&a.T!=null),nops=()=>AREAS.filter(a=>
 const mean=(l,f)=>l.length?l.reduce((s,a)=>s+f(a),0)/l.length:null;
 function render(){pending=false;if(!M.ready||ui.view!=='4d')return;if(!W)size();
   renderer.setScissorTest(true);renderer.setClearColor(0x000000,0);let html='';const wl=walked(),vs=views();
-  const sk=[M.mode,pday(),M.under,Object.values(M.show).join(),WK,AREAS.length].join('|');
+  const sk=[M.mode,pday(),M.focus.b,M.focus.z,M.focus.lv,Object.values(M.show).join(),WK,AREAS.length].join('|');
   vs.forEach((v,i)=>{paint(v.p);setAspect(v.w/v.h);
     if(!coarse){if(i===0&&M.shadowKey!==sk){renderer.shadowMap.needsUpdate=true;M.shadowKey=sk}}
     renderer.setViewport(v.x,H-v.y-v.h,v.w,v.h);renderer.setScissor(v.x,H-v.y-v.h,v.w,v.h);renderer.clear();renderer.render(scene,camera);
     const nm=v.p==='G'?'Gap to target':PR[v.p].name,o=v.p==='G'||v.p==='F'?null:mean(wl,a=>v.p==='A'?a.A:a[v.p]);
     const when=v.p==='A'?'walk of '+fmt(ctx().wk):v.p==='F'?'BSBG BIM model':fmt(dOf(pday()));
     html+=`<div class="vl4" style="left:${v.x+10}px;top:${v.y+10}px;border-inline-start:4px solid ${v.p==='G'?'var(--red)':pcol(v.p)}"><b>${esc(nm)}</b><span>${v.p==='F'?'Towers 3 and 4, podium, basements':o==null?wl.filter(a=>a.gap<-15).length+' areas more than 15 pts behind':Math.round(o*100)+'% done'} · ${esc(when)}</span></div>`;
-    for(const t of ['T3','T4']){const tw=G.towers[t],q=new T.Vector3(tw.c[0],tw.top+4,tw.c[2]).project(camera);if(q.z<1&&q.x>-1&&q.x<1&&q.y>-1&&q.y<1)html+=`<div class="tg4" style="left:${v.x+(q.x+1)/2*v.w}px;top:${v.y+(1-q.y)/2*v.h}px">${t==='T3'?'Tower 3':'Tower 4'}</div>`}
+    for(const t of ['T3','T4']){if(M.focus.lv||(M.focus.b!=='ALL'&&M.focus.b!==t))continue;const tw=G.towers[t],q=new T.Vector3(tw.c[0],tw.top+4,tw.c[2]).project(camera);if(q.z<1&&q.x>-1&&q.x<1&&q.y>-1&&q.y<1)html+=`<div class="tg4" style="left:${v.x+(q.x+1)/2*v.w}px;top:${v.y+(1-q.y)/2*v.h}px">${t==='T3'?'Tower 3':'Tower 4'}</div>`}
     if(v.x>0)html+=`<div style="position:absolute;left:${v.x}px;top:0;bottom:0;width:1px;background:var(--line)"></div>`;
     if(v.y>0)html+=`<div style="position:absolute;top:${v.y}px;left:0;right:0;height:1px;background:var(--line)"></div>`});
   $('#lab4').innerHTML=html}
+function boxOf(test){const b=new T.Box3(),t=new T.Box3();for(const a of AREAS){if(!test(a))continue;for(const e of a.els){const g=e.mesh.geometry;if(!g.boundingBox)g.computeBoundingBox();t.copy(g.boundingBox).applyMatrix4(e.mesh.matrixWorld);b.union(t)}}return b}
+function ptsOf(test){const pts=[],box=new T.Box3(),t=new T.Box3();for(const a of AREAS){if(!test(a))continue;for(const e of a.els){const g=e.mesh.geometry;if(!g.boundingBox)g.computeBoundingBox();t.copy(g.boundingBox).applyMatrix4(e.mesh.matrixWorld);box.union(t);
+    for(const x of [t.min.x,t.max.x])for(const y of [t.min.y,t.max.y])for(const z of [t.min.z,t.max.z])pts.push(new T.Vector3(x,y,z))}}return{pts,box}}
+function fitView(box,dir,ms,P0){if(box.isEmpty())return;const tgt=box.getCenter(new T.Vector3());let pts=P0;if(!pts){pts=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])pts.push(new T.Vector3(x,y,z))}
+  const d=dir.clone().normalize(),asp=views().map(v=>v.w/v.h),save={p:camera.position.clone(),q:camera.quaternion.clone(),a:camera.aspect,f:camera.fov},v=new T.Vector3();
+  let lo=5,hi=4000;for(let i=0;i<26;i++){const mid=(lo+hi)/2;camera.position.copy(tgt).addScaledVector(d,mid);camera.lookAt(tgt);camera.updateMatrixWorld();let ok=true;
+    for(const a of asp){setAspect(a);for(const q of pts){v.copy(q).project(camera);if(Math.abs(v.x)>.95||v.y>.86||v.y<-.93||v.z>1){ok=false;break}}if(!ok)break}
+    if(ok)hi=mid;else lo=mid}
+  camera.position.copy(save.p);camera.quaternion.copy(save.q);camera.aspect=save.a;camera.fov=save.f;camera.updateProjectionMatrix();
+  const to={p:tgt.clone().addScaledVector(d,hi),t:tgt};if(ms)fly({p:camera.position.clone(),t:controls.target.clone()},to,ms);return to}
+function curDir(minEl,maxEl){const d=camera.position.clone().sub(controls.target).normalize();const el=Math.asin(Math.max(-1,Math.min(1,d.y))),c=Math.min(maxEl,Math.max(minEl,el)),h=Math.hypot(d.x,d.z)||1;
+  return new T.Vector3(d.x/h*Math.cos(c),Math.sin(c),d.z/h*Math.cos(c))}
+function goFocus(ms){const f=M.focus;const q=ptsOf(f.lv?a=>inScope(a)&&a.lv===f.lv:f.b==='ALL'?a=>a.bld!=='SITE'&&a.key!=='BR/GF/STR':a=>inScope(a)&&a.lv!=='VT'&&a.lv!=='ALL');
+  if(q.box.isEmpty())return;const dir=f.lv?curDir(.75,1.05):f.b==='ALL'?new T.Vector3(-.62,.5,.78):curDir(.35,.75);fitView(q.box,dir,ms||1100,q.pts)}
 function frame(){const b=new T.Box3(new T.Vector3(...G.q.min),new T.Vector3(...G.q.max));CTR=b.getCenter(new T.Vector3());CTR.y=G.levels.P05;
-  const R=b.getSize(new T.Vector3()).length()*.5;const tc=new T.Vector3((G.towers.T3.c[0]+G.towers.T4.c[0])/2,40,(G.towers.T3.c[2]+G.towers.T4.c[2])/2+12);HOME={t:tc,p:tc.clone().add(new T.Vector3(-.62,.5,.78).normalize().multiplyScalar(R*2.05))}}
+  const R=b.getSize(new T.Vector3()).length()*.5;const tc=new T.Vector3((G.towers.T3.c[0]+G.towers.T4.c[0])/2,40,(G.towers.T3.c[2]+G.towers.T4.c[2])/2+12);HOME={t:tc,p:tc.clone().add(new T.Vector3(-.62,.5,.78).normalize().multiplyScalar(R*2.05))};const q=ptsOf(a=>a.bld!=='SITE'&&a.key!=='BR/GF/STR');const full=fitView(q.box,new T.Vector3(-.62,.5,.78),0,q.pts);if(full)HOME=full}
 function fly(from,to,ms){const t0=performance.now();M.intro=1;const s={p:from.p.clone(),t:from.t.clone()};
   const step=now=>{const k=Math.min(1,(now-t0)/ms),e=1-Math.pow(1-k,3);camera.position.lerpVectors(s.p,to.p,e);controls.target.lerpVectors(s.t,to.t,e);controls.update();render();if(k<1&&M.intro)requestAnimationFrame(step);else M.intro=0};
   requestAnimationFrame(step)}
@@ -171,7 +209,7 @@ async function init(){T=THREE;P=window.P4D||P;canvas=$('#cv4');board=$('#board4'
   sun=new T.DirectionalLight(0xffeed8,2.1);scene.add(sun,sun.target);const fill=new T.DirectionalLight(0xdbe6ff,.28);scene.add(fill,fill.target);
   const l=$('#ld4');if(l)l.innerHTML='Loading the BIM model… <b>0%</b>';
   const data=decode(await fetchModel());if(l)l.innerHTML='Building the 3D model…';await new Promise(z=>setTimeout(z,30));
-  build(data);frame();
+  build(data);size();frame();
   sun.position.copy(CTR).add(new T.Vector3(185,205,95));sun.target.position.copy(CTR);fill.position.copy(CTR).add(new T.Vector3(-170,80,-40));fill.target.position.copy(CTR);
   if(!coarse){sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0004;sun.shadow.normalBias=.4;Object.assign(sun.shadow.camera,{left:-190,right:190,top:190,bottom:-190,near:40,far:700});sun.shadow.camera.updateProjectionMatrix()}
   gMat=new T.MeshStandardMaterial({map:groundTex(),transparent:true,roughness:1,metalness:0,depthWrite:false,envMapIntensity:.25});
@@ -185,7 +223,7 @@ async function init(){T=THREE;P=window.P4D||P;canvas=$('#cv4');board=$('#board4'
   canvas.addEventListener('pointerup',ev=>{if(down&&Math.hypot(ev.clientX-down[0],ev.clientY-down[1])<7)pick(ev,true);down=null});
   M.ready=true;$('#ld4')?.remove();size();
   const start={p:CTR.clone().add(new T.Vector3(-520,430,160)),t:CTR.clone().add(new T.Vector3(0,30,0))};camera.position.copy(start.p);controls.target.copy(start.t);controls.update()}
-function ground4(){if(!gMat)return;gMat.opacity=M.under?.28:1;ground.visible=true}
+function ground4(){if(!gMat)return;const f=M.focus,under=f.b==='BASE'||(f.lv&&/^B\d$/.test(f.lv));gMat.opacity=under?.1:1;sun.shadow&&(renderer.shadowMap.needsUpdate=true)}
 
 /* tap and hover */
 let hoverT=0;
@@ -196,7 +234,8 @@ function pick(ev,pin){const now=performance.now();if(!pin&&now-hoverT<120)return
   const meshes=[];for(const a of AREAS)for(const e of a.els)if(e.mesh.visible&&e.mesh.material.opacity>.12)meshes.push(e.mesh);
   const hits=ray.intersectObjects(meshes,false);draw();
   if(!hits.length){hideTip();return}
-  showTip(hits[0].object.userData.e.a,x,y,pin)}
+  const ha=hits[0].object.userData.e.a;if(pin&&M.focus.b!=='ALL'&&inScope(ha)&&ha.lv&&levelsFor(M.focus.b).includes(ha.lv)&&M.focus.lv!==ha.lv){setFocus({lv:ha.lv});return}
+  showTip(ha,x,y,pin)}
 const pc=v=>v==null?'–':Math.round(v*100)+'%';
 function tipHTML(a){const gp=a.gap,cls=gp==null?'':gp>=-5?'g':gp>=-15?'o':'r';
   return`<button class="x" type="button" data-x4 aria-label="Close">×</button><h3>${esc(a.label)}</h3>
@@ -214,7 +253,7 @@ function tl(){const r=$('#rng4');if(!r||!SPAN[1])return;r.min=SPAN[0];r.max=SPAN
   const d=pday();$('#tld4').innerHTML=`<b>${fmt(dOf(d))}</b>${d===DAY4?' · walk date':d<DAY4?' · before the walk':' · ahead'}`;
   $('#play4').textContent=M.play?'❚❚ Pause':'▶ Play the programme';const pr=(d-SPAN[0])/(SPAN[1]-SPAN[0])*100;r.style.setProperty('--p',pr.toFixed(1)+'%');
   const tm=$('#tmk4');if(tm)tm.style.left=((DAY4-SPAN[0])/(SPAN[1]-SPAN[0])*100).toFixed(2)+'%'}
-function setDay(d){M.day=Math.max(SPAN[0],Math.min(SPAN[1],Math.round(d)));if(M.day===DAY4)M.day=null;prog();tl();kpis();draw()}
+function setDay(d){M.day=Math.max(SPAN[0],Math.min(SPAN[1],Math.round(d)));if(M.day===DAY4)M.day=null;prog();tl();kpis();sel();draw()}
 function stop(){if(M.play){clearInterval(M.play);M.play=0;tl();trades();behind()}}
 function play(){if(M.play){stop();return}if(M.mode==='A'){M.mode='AT';$$('#seg4 button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m4==='AT'));legend()}
   if(pday()>=SPAN[1]-7)M.day=SPAN[0];
@@ -235,7 +274,27 @@ function legend(){const g=M.mode==='G';
   $('#lg4').innerHTML=(g?[['#2e9e5b','On target or ahead (within 5 pts)'],['#e5701a','Behind 5 to 15 pts'],['#c00000','Behind more than 15 pts']]:[['linear-gradient(135deg,#d6d2cb 50%,#7eaacc 50%)','Built: real materials from the BIM model'],['#F59A2F','In progress'],['#9cc4ea','Façade going up'],['linear-gradient(90deg,#a8ddd3,#0b5f66)','Fit-out & MEP (darker = further on)'],['#6B4FA0','Lifts'],['#8fa3b8','Faint: not started yet']])
     .map(([c,t])=>`<span><span class="sw" style="background:${c}"></span> ${t}</span>`).join('')+'<span><span class="sw" style="background:#9AA0A6;opacity:.5"></span> Grey haze: not in the walk yet</span><span><span class="sw" style="background:#3E4A52"></span> Slate: open on site, no activity in the programme</span>'}
 function lay(){$('#lay4').innerHTML=LAYERS.map(l=>`<button type="button" class="chip" data-l4="${l.k}" aria-pressed="${M.show[l.k]}"><span class="sw" style="background:${l.col}"></span>${l.name}</button>`).join('')
-  +`<button type="button" class="chip" data-under4 aria-pressed="${M.under}"><span class="sw" style="background:#c9bfb1"></span>See basements</button>`}
+}
+
+function lvStat(b,z,lv){const l=AREAS.filter(a=>a.lv===lv&&(b==='BASE'?(!z||a.zone===z):(a.bld===b&&(!z||a.zone===z)))&&a.A!=null&&a.T!=null&&a.layer!=='VT');
+  return l.length?{A:mean(l,a=>a.A),T:mean(l,a=>a.T),U:mean(l,a=>a.U),B:mean(l,a=>a.B),n:l.length,walk:(l.find(a=>a.walk)||{}).walk,ref:(l.find(a=>a.walk)||{}).ref}:null}
+const lvLab=lv=>lv==='ROOF'?'Roof':lv;
+function explorer(){const ex=$('#ex4');if(!ex||!M.ready)return;const f=M.focus;
+  let h=`<div class="sc4">${Object.keys(BNAME).map(b=>`<button type="button" class="chip" data-b4="${b}" aria-pressed="${f.b===b}">${BNAME[b]}</button>`).join('')}</div>`;
+  if(f.b==='POD'||f.b==='BASE'){const zs=f.b==='POD'?['Z3','Z4','Z5A','Z5B']:['Z1','Z2','Z3','Z4','Z5A','Z5B'];
+    h+=`<div class="sc4 zn4"><button type="button" class="chip" data-z4="" aria-pressed="${!f.z}">All zones</button>${zs.map(z=>`<button type="button" class="chip" data-z4="${z}" aria-pressed="${f.z===z}">${ZNAME[z]}</button>`).join('')}</div>`}
+  const lvs=levelsFor(f.b);
+  if(lvs.length)h+=`<div class="lvs4" role="group" aria-label="Levels"><button type="button" class="lv4c all" data-lv4="" aria-pressed="${!f.lv}"><b>All</b><span>levels</span></button>${lvs.map(lv=>{const s=lvStat(f.b,f.z,lv),g=s?(s.A-s.T)*100:null,c=g==null?'#c9c3cc':g>=-5?'#2e9e5b':g>=-15?'#e5701a':'#c00000';
+    return`<button type="button" class="lv4c" data-lv4="${lv}" aria-pressed="${f.lv===lv}" title="${esc(lvLab(lv))}${s?`: actual ${pc(s.A)}, target ${pc(s.T)}`:''}"><b>${esc(lvLab(lv))}</b><span><i style="background:${c}"></i>${s?pc(s.A):'–'}</span></button>`}).join('')}</div>`;
+  else h+=`<p class="src" style="margin:0">Pick a tower, the podium or the basements to go floor by floor.</p>`;
+  ex.innerHTML=h;const on=ex.querySelector('.lv4c[aria-pressed="true"]');if(on&&f.lv)on.scrollIntoView({block:'nearest',inline:'center'});sel()}
+function sel(){const el=$('#sel4');if(!el)return;const f=M.focus;if(f.b==='ALL'){el.style.display='none';return}
+  const nm=BNAME[f.b]+(f.z?' · '+ZNAME[f.z]:'')+(f.lv?' · '+(f.lv==='ROOF'?'Roof':/^L/.test(f.lv)?'Level '+(+f.lv.slice(1)):f.lv):'');
+  let s=null;if(f.lv)s=lvStat(f.b,f.z,f.lv);else{const l=AREAS.filter(a=>inScope(a)&&a.A!=null&&a.T!=null&&a.layer!=='VT');s=l.length?{A:mean(l,a=>a.A),T:mean(l,a=>a.T),U:mean(l,a=>a.U),n:l.length,walk:(l.find(a=>a.walk)||{}).walk,ref:(l.find(a=>a.walk)||{}).ref}:null}
+  const g=s?(s.A-s.T)*100:null,cls=g==null?'':g>=-5?'g':g>=-15?'o':'r';
+  el.style.display='block';el.innerHTML=`<b>${esc(nm)}</b>${s?`<div class="r4"><span style="color:var(--pur)">Actual <b>${pc(s.A)}</b></span><span style="color:#c00000">Target <b>${pc(s.T)}</b></span><span>20 Nov update <b>${pc(s.U)}</b></span><span class="gp ${cls}">${g>0?'+':''}${Math.round(g)} pts</span></div><span class="src">${s.n} area${s.n>1?'s':''} in the walk${M.day!=null?', programme read on '+fmt(dOf(pday())):''}</span>`:'<span class="src">Nothing walked here yet.</span>'}
+    <div class="tools">${s&&s.walk?`<button class="btn pur" type="button" data-w4="${esc(s.ref||s.walk)}">Walk it</button>`:''}${f.lv?`<button class="btn" type="button" data-lvstep="1">▲ Up</button><button class="btn" type="button" data-lvstep="-1">▼ Down</button>`:''}<button class="btn" type="button" data-b4="ALL">Whole site</button></div>`}
+function setFocus(nf,fly){Object.assign(M.focus,nf);hideTip();ground4();explorer();draw();if(fly!==false)goFocus()}
 
 /* three.js and the model load only when the 4D tab opens */
 function loadJS(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(new Error('Could not load '+src));document.head.appendChild(s)})}
@@ -244,14 +303,18 @@ function ensure(){if(M.ready)return Promise.resolve();if(!M.loading)M.loading=(w
   .then(()=>{compute();fly({p:camera.position.clone(),t:controls.target.clone()},HOME,2600)})
   .catch(e=>{M.loading=null;const l=$('#ld4');if(l)l.textContent=(e&&e.message&&/Sign in|Model/.test(e.message))?e.message:'The 3D model could not load. Check the internet connection and open the tab again.'});return M.loading}
 function render4(){if(!loaded)return;const c=ctx();$('#d4date').textContent='Walk of '+fmt(c.wk)+(c.isCur?', today '+fmt(c.date):'')+'. Real BIM model (BSBG Revit, Nov 2026).';
-  lay();legend();ensure().then(()=>{if(!M.ready)return;compute();tl();kpis();trades();behind();hideTip();size();if(!M.intro)draw()})}
+  lay();legend();ensure().then(()=>{if(!M.ready)return;compute();tl();kpis();trades();behind();explorer();hideTip();size();if(!M.intro)draw()})}
 document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
   if(t.dataset.m4){M.mode=t.dataset.m4;$$('#seg4 button').forEach(b=>b.setAttribute('aria-pressed',b===t));hideTip();legend();draw();return}
   if(t.dataset.l4){const k=t.dataset.l4;M.show[k]=!M.show[k];t.setAttribute('aria-pressed',M.show[k]);hideTip();draw();return}
-  if(t.dataset.under4!==undefined){if(!M.ready)return;M.under=!M.under;t.setAttribute('aria-pressed',M.under);ground4();controls.maxPolarAngle=M.under?Math.PI*.85:Math.PI*.495;if(M.under&&HOME&&!M.intro){fly({p:camera.position.clone(),t:controls.target.clone()},{p:CTR.clone().add(new T.Vector3(-160,-25,190)),t:CTR.clone().add(new T.Vector3(0,-6,0))},1400)}else draw();return}
+  if(false){if(!M.ready)return;M.under=!M.under;t.setAttribute('aria-pressed',M.under);ground4();controls.maxPolarAngle=M.under?Math.PI*.85:Math.PI*.495;if(M.under&&HOME&&!M.intro){fly({p:camera.position.clone(),t:controls.target.clone()},{p:CTR.clone().add(new T.Vector3(-160,-25,190)),t:CTR.clone().add(new T.Vector3(0,-6,0))},1400)}else draw();return}
   if(t.id==='play4'){play();return}
   if(t.id==='now4'){stop();M.day=null;prog();tl();kpis();trades();behind();draw();return}
-  if(t.id==='home4'){if(HOME)fly({p:camera.position.clone(),t:controls.target.clone()},HOME,1200);return}
+  if(t.id==='home4'){if(!M.ready)return;M.focus={b:'ALL',z:null,lv:null};ground4();explorer();draw();goFocus(1200);return}
+  if(t.dataset.b4!==undefined){if(!M.ready)return;setFocus({b:t.dataset.b4,z:null,lv:null});return}
+  if(t.dataset.z4!==undefined){if(!M.ready)return;setFocus({z:t.dataset.z4||null,lv:null});return}
+  if(t.dataset.lv4!==undefined){if(!M.ready)return;const lv=t.dataset.lv4||null;setFocus({lv:M.focus.lv===lv?null:lv});return}
+  if(t.dataset.lvstep){const l=levelsFor(M.focus.b),i=l.indexOf(M.focus.lv),j=i-(+t.dataset.lvstep);if(i>=0&&j>=0&&j<l.length)setFocus({lv:l[j]});return}
   if(t.dataset.x4!==undefined){hideTip();return}
   if(t.dataset.w4){const w=t.dataset.w4;hideTip();stop();if(BYREF[w]){ui.due=false;openItem(w);return}const [b,l]=w.split('|');ui.b=b;ui.l=l;ui.q='';ui.due=false;remember();show('walk');if(innerWidth<900)scrollTo({top:0});return}});
 document.addEventListener('input',e=>{if(e.target.id==='rng4'){stop();setDay(+e.target.value)}});

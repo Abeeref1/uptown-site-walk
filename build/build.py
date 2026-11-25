@@ -198,6 +198,8 @@ s = s[:i] + d4.strip() + s[j:]
 mh = open(os.path.join(ROOT, 'model.ver')).read().strip() if os.path.exists(os.path.join(ROOT, 'model.ver')) else '0'
 rep('<title>Uptown Phase 2 Site Walk</title>', '<title>Uptown Phase 2 Site Walk</title>\n<script>window.SW_MODEL="_m/model.bin?v=' + mh + '"</script>')
 rep('<button type="button" data-m4="AT" aria-pressed="true">Actual vs Target</button>', '<button type="button" data-m4="AT" aria-pressed="true">Actual vs Target</button>\n        <button type="button" data-m4="F" aria-pressed="false">Finished design</button>')
+rep('        <button type="button" data-m4="B" aria-pressed="false">Baseline</button>\n      </div>', '        <button type="button" data-m4="B" aria-pressed="false">Baseline</button>\n      </div>\n      <div class="ex4" id="ex4"></div>')
+rep('      <div class="ld4" id="ld4">Loading the 3D model…</div>', '      <div class="sel4" id="sel4"></div>\n      <div class="ld4" id="ld4">Loading the 3D model…</div>')
 rep('<h2>4D: what the walk found vs the programme</h2>', '<h2>4D: the real building, the walk vs the programme</h2>')
 rep('      <div class="lay4" id="lay4" role="group" aria-label="Trades shown"></div>\n', '')
 rep('    <div class="kp4" id="kp4"></div>\n', '')
@@ -217,6 +219,20 @@ css4 = r"""
 .tg4{background:var(--pur2)!important;color:#fff;border:0!important;border-radius:999px!important;padding:5px 10px!important;font-size:13px!important;box-shadow:0 4px 14px rgba(110,42,131,.3)}
 .vl4{background:rgba(255,255,255,.88)!important;backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(40,20,60,.08)}
 .ld4{background:linear-gradient(180deg,#e6effb,#f5f2f8);font-size:17px}.ld4 b{color:var(--pur2)}
+.ex4{display:grid;gap:8px}.sc4{display:flex;flex-wrap:wrap;gap:6px}
+.sc4 .chip{min-height:40px;padding:6px 14px;font-weight:700}.sc4 .chip[aria-pressed=true]{background:var(--pur2);border-color:var(--pur2);color:#fff;box-shadow:none}
+.zn4 .chip{min-height:34px;font-weight:600;font-size:14px}
+.lvs4{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:thin}
+.lv4c{flex:none;display:grid;justify-items:center;gap:2px;min-width:58px;padding:6px 8px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;font:inherit}
+.lv4c b{font:700 15px/1 "Barlow Semi Condensed",Barlow,sans-serif}.lv4c span{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:4px}
+.lv4c span i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.lv4c[aria-pressed=true]{border-color:var(--pur2);box-shadow:inset 0 0 0 2px var(--pur2);background:#f7eefb}
+.lv4c.all{background:var(--soft)}
+.sel4{position:absolute;left:10px;bottom:10px;z-index:5;display:none;max-width:min(420px,calc(100% - 20px));background:rgba(255,255,255,.93);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 8px 22px rgba(40,20,60,.12);font-size:14px}
+.sel4>b{font:700 18px/1.15 "Barlow Semi Condensed",Barlow,sans-serif;display:block}
+.sel4 .r4{display:flex;flex-wrap:wrap;gap:4px 12px;margin:4px 0 2px}.sel4 .r4 b{font-size:16px}
+.sel4 .tools{margin-top:8px;gap:6px}.sel4 .btn{min-height:36px;padding:4px 12px}
+.sel4 .gp.g{color:var(--grn);font-weight:700}.sel4 .gp.o{color:var(--org);font-weight:700}.sel4 .gp.r{color:var(--red);font-weight:700}
 @media(max-width:640px){.board4{height:72vh;min-height:420px}.tl4 .btn{flex:1 1 auto}.tld4{min-width:0;flex:1 1 100%}.seg4{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:100%}.seg4 button{white-space:nowrap;flex:none}.d4top .hd .src{display:none}}
 """
 rep('</style>\n<script>new MutationObserver', css4 + '</style>\n<script>new MutationObserver')
