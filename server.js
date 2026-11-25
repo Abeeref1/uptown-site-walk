@@ -61,7 +61,8 @@ function commit(op) { op.at = new Date().toISOString(); applyOp(op); op.seq = SE
 /* ---------- people ---------- */
 const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString('hex');
 const newPin = () => String(crypto.randomInt(0, 1e6)).padStart(6, '0');
-const pinOwner = pin => USERS.find(x => x.pin && hashPin(String(pin || '').trim(), x.salt) === x.pin);
+const pinOwner = pin => { const raw = String(pin || '').trim(), low = raw.toLowerCase();
+  return USERS.find(x => x.pin && (hashPin(raw, x.salt) === x.pin || (low !== raw && hashPin(low, x.salt) === x.pin))); };
 function setPin(u, pin) { u.salt = crypto.randomBytes(8).toString('hex'); u.pin = hashPin(pin, u.salt); }
 function uniquePin() { for (let i = 0; i < 50; i++) { const p = newPin(); if (!pinOwner(p)) return p; } throw new Error('No free PIN'); }
 // sign-in is a password (PIN) only: each person has their own, so saves still show who did them
@@ -112,6 +113,7 @@ async function apiRoute(req, res, p, q) {
     if (limited(ip)) return json(res, 429, { error: 'Too many tries. Wait a minute.' });
     const b = JSON.parse((await body(req, 1e4)).toString() || '{}');
     const u = String(b.pin || '').trim().length >= 4 ? pinOwner(b.pin) : null;
+    console.log(`login ${u ? 'ok ' + u.id : 'wrong'} ip=${ip} ua=${String(req.headers['user-agent'] || '').slice(0, 60)}`);
     if (!u) return json(res, 401, { error: 'Wrong password.' });
     const t = crypto.randomBytes(24).toString('hex'); SESS[t] = { uid: u.id, at: Date.now() }; writeJSON('sessions.json', SESS);
     return json(res, 200, { user: pub(u) }, { 'Set-Cookie': cookie(t, 3600 * 24 * 180) });
@@ -187,6 +189,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x'); let p = decodeURIComponent(url.pathname);
     if (p === '/health') return send(res, 200, 'ok', 'text/plain');
+    if (!p.includes('/api/changes') && !p.includes('_blob/')) console.log(`${req.method} ${p} host=${req.headers.host || ''}`);
     if (p === BASE) { res.writeHead(302, { Location: BASE + '/' }); return res.end(); }
     if (!p.startsWith(BASE + '/')) {
       if (OTHER) return proxy(req, res);
