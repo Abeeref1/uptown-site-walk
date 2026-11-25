@@ -32,6 +32,16 @@ function loadProject() {
 }
 loadProject();
 const PROJECT_JSON = JSON.stringify(PROJECT);
+// BIM model for the 4D tab: AES-256-GCM in the repo (model.enc), kept gzipped in memory
+let MODEL_GZ = null, MODEL_RAW = 0;
+try {
+  const encF = path.join(__dirname, 'model.enc');
+  if (process.env.DATA_KEY && fs.existsSync(encF)) {
+    const b = fs.readFileSync(encF); const d = crypto.createDecipheriv('aes-256-gcm', Buffer.from(process.env.DATA_KEY, 'hex'), b.subarray(0, 12));
+    d.setAuthTag(b.subarray(12, 28)); MODEL_GZ = Buffer.concat([d.update(b.subarray(28)), d.final()]); MODEL_RAW = require('zlib').gunzipSync(MODEL_GZ).length;
+    console.log(`4D model ready: ${(MODEL_GZ.length / 1e6).toFixed(1)} MB`);
+  }
+} catch (e) { console.error('4D model not loaded:', e.message); }
 
 /* ---------- small JSON store ---------- */
 const F = n => path.join(DATA_DIR, n);
@@ -353,6 +363,11 @@ const server = http.createServer(async (req, res) => {
     }
     p = p.slice(BASE.length + 1);
     if (p.startsWith('api/')) return await apiRoute(req, res, p.slice(4), url.searchParams);
+    if (p === '_m/model.bin') {
+      if (!userOf(req)) return send(res, 401, 'Sign in', 'text/plain');
+      if (!MODEL_GZ) return send(res, 404, 'No model', 'text/plain');
+      return send(res, 200, MODEL_GZ, 'application/octet-stream', { 'Content-Encoding': 'gzip', 'X-Raw-Length': String(MODEL_RAW), 'Cache-Control': 'private, max-age=31536000, immutable', 'Access-Control-Expose-Headers': 'X-Raw-Length' });
+    }
     if (p.startsWith('_blob/')) {
       if (!userOf(req)) return send(res, 401, 'Sign in', 'text/plain');
       const id = p.slice(6).replace(/[^\w]/g, ''); const f = path.join(DATA_DIR, 'photos', id + '.jpg');

@@ -190,6 +190,37 @@ rep('<html lang="en">', '<html lang="en" data-theme="light">')
 rep('<meta name="theme-color" content="#141414">', '<meta name="theme-color" content="#ffffff">')
 rep('<div class="brand"><img src="dmcc_white.png" alt="DMCC"><span class="sep"></span><img src="logo.png" alt="Mace"></div>', '<div class="brand"><img src="dmcc.png" alt="DMCC"><span class="sep"></span><img src="mace.png" alt="Mace"></div>')
 rep('<title>Uptown Site Walk</title>', '<title>Uptown Phase 2 Site Walk</title>\n<link rel="manifest" href="manifest.webmanifest">')
+
+# 9. 4D on the real BIM model: new module, timeline, model file served after sign-in
+d4 = open(os.path.join(HERE, 'd4.js')).read()
+i = s.index('/* ---------- 4D: the walk against the programme ---------- */'); j = s.index('return{render:render4,draw}})();', i) + len('return{render:render4,draw}})();')
+s = s[:i] + d4.strip() + s[j:]
+mh = open(os.path.join(ROOT, 'model.ver')).read().strip() if os.path.exists(os.path.join(ROOT, 'model.ver')) else '0'
+rep('<title>Uptown Phase 2 Site Walk</title>', '<title>Uptown Phase 2 Site Walk</title>\n<script>window.SW_MODEL="_m/model.bin?v=' + mh + '"</script>')
+rep('<button type="button" data-m4="AT" aria-pressed="true">Actual vs Target</button>', '<button type="button" data-m4="AT" aria-pressed="true">Actual vs Target</button>\n        <button type="button" data-m4="F" aria-pressed="false">Finished design</button>')
+rep('<h2>4D: what the walk found vs the programme</h2>', '<h2>4D: the real building, the walk vs the programme</h2>')
+rep('      <div class="lay4" id="lay4" role="group" aria-label="Trades shown"></div>\n', '')
+rep('    <div class="kp4" id="kp4"></div>\n', '')
+rep('    <div class="lg4" id="lg4"></div>', '    <div class="box ctl4"><div class="tl4"><button type="button" class="btn pur" id="play4">▶ Play the programme</button><div class="rng4w"><input type="range" id="rng4" min="0" max="1" step="1" value="0" aria-label="Programme date"><i id="tmk4" title="Walk date"></i></div><span class="tld4" id="tld4"></span><button type="button" class="btn" id="now4">Walk date</button><button type="button" class="btn" id="home4">Reset view</button></div>\n      <div class="lay4" id="lay4" role="group" aria-label="Trades shown"></div>\n      <div class="lg4" id="lg4"></div></div>\n    <div class="kp4" id="kp4"></div>')
+rep('Drag to turn, pinch or scroll to zoom. Tap any floor, façade or lift to see the walk against the programme, then press Walk it to fill it.',
+    'Drag to turn, pinch or scroll to zoom. Built parts show the real materials of the BIM model, parts in progress show orange, parts not started are faint. Press Play to build the programme week by week next to what the walk found. Tap any floor, façade or lift, then press Walk it to fill it.')
+css4 = r"""
+/* ---------- 4D on the BIM model ---------- */
+.board4{height:min(78vh,780px);min-height:440px;background:linear-gradient(180deg,#e6effb 0%,#f5f2f8 50%,#efe9ee 100%)!important;border:1px solid #e3dcea;box-shadow:0 14px 40px rgba(60,30,80,.10)}
+.ctl4{display:grid;gap:10px;margin-top:12px}.ctl4 .lg4{margin:0}
+.tl4{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.tl4 .btn{min-height:40px}
+.rng4w{position:relative;flex:1 1 260px;min-width:200px;padding:6px 0}
+#rng4{width:100%;accent-color:var(--pur2);height:6px}
+#tmk4{position:absolute;top:0;bottom:0;width:2px;background:var(--red);pointer-events:none;border-radius:1px}
+.tld4{font-size:14px;color:var(--mute);min-width:170px}.tld4 b{color:var(--ink);font-size:16px}
+.tg4{background:var(--pur2)!important;color:#fff;border:0!important;border-radius:999px!important;padding:5px 10px!important;font-size:13px!important;box-shadow:0 4px 14px rgba(110,42,131,.3)}
+.vl4{background:rgba(255,255,255,.88)!important;backdrop-filter:blur(6px);box-shadow:0 6px 18px rgba(40,20,60,.08)}
+.ld4{background:linear-gradient(180deg,#e6effb,#f5f2f8);font-size:17px}.ld4 b{color:var(--pur2)}
+@media(max-width:640px){.board4{height:72vh;min-height:420px}.tl4 .btn{flex:1 1 auto}.tld4{min-width:0;flex:1 1 100%}.seg4{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:100%}.seg4 button{white-space:nowrap;flex:none}.d4top .hd .src{display:none}}
+"""
+rep('</style>\n<script>new MutationObserver', css4 + '</style>\n<script>new MutationObserver')
+
 out = os.path.join(ROOT, 'public'); os.makedirs(out, exist_ok=True)
 open(os.path.join(out, 'index.html'), 'w').write(s)
 print('index.html', len(s))
