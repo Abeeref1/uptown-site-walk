@@ -59,6 +59,7 @@ window.claude={use:async n=>{await ready;return{db,user,assets,downloads}[n]||nu
 function login(msg){ME=null;const o=$('#swlogin');if(!o)return;o.classList.add('show');$('#swerr').textContent=msg||'';setTimeout(()=>{try{$('#swf').elements.pin.focus()}catch(e){}},60)}
 async function start(){try{const j=await api('me');ME=j.user;afterLogin()}catch(e){if(e.offline){const c=localStorage.getItem('sw-me');if(c){ME=JSON.parse(c);afterLogin();return}}login()}}
 function afterLogin(){try{localStorage.setItem('sw-me',JSON.stringify(ME))}catch(e){}$('#swlogin')?.classList.remove('show');okReady();poll();tools()}
+document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('#swshow');if(!t)return;const f=$('#swf').elements.pin;const show=f.type==='password';f.type=show?'text':'password';t.textContent=show?'Hide':'Show';f.focus()});
 document.addEventListener('submit',async e=>{if(e.target.id!=='swf')return;e.preventDefault();const el=e.target.elements,b=$('#swbtn');b.disabled=true;$('#swerr').textContent='';
   try{const j=await api('login',{method:'POST',body:JSON.stringify({pin:el.pin.value})});ME=j.user;el.pin.value='';afterLogin()}
   catch(x){$('#swerr').textContent=x.offline?'No signal. Try again when online.':x.message}finally{b.disabled=false}});

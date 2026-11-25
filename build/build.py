@@ -64,7 +64,7 @@ rep('<div class="note hidden" id="note"></div>', '<div class="note hidden" id="n
 overlays = r"""<div class="over" id="swlogin"><form class="sheet swl" id="swf" autocomplete="on">
   <div class="swlh"><img src="dmcc.png" alt="DMCC"><span></span><img src="mace.png" alt="Mace"></div>
   <h2>Uptown Phase 2 site walk</h2><p class="src" style="margin:0">Type your password.</p>
-  <label>Password<input name="pin" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="60" required style="font-size:22px;letter-spacing:.08em;text-align:center"></label>
+  <label>Password<span style="display:flex;gap:8px;align-items:stretch"><input name="pin" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="60" required style="font-size:22px;letter-spacing:.08em;text-align:center;flex:1;min-width:0"><button type="button" class="btn" id="swshow" style="min-width:70px">Show</button></span></label>
   <button class="btn pur" type="submit" id="swbtn" style="min-height:52px;font-size:17px">Sign in</button>
   <p class="src" id="swerr" style="margin:0;color:var(--red);font-weight:600"></p><p class="src" style="margin:0">No password yet? Ask the site walk admin.</p></form></div>
 <div class="over" id="swteamov"><div class="sheet" style="width:min(720px,100%)" role="dialog" aria-label="Team">
