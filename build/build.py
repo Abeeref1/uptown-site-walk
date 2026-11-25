@@ -110,6 +110,7 @@ header.appbar .me{color:#333}
 .btn.next{background:linear-gradient(90deg,#6e2a83,#8b3aa3);color:#fff;box-shadow:0 8px 20px rgba(110,42,131,.28)}
 .btn.next small{color:#f0dff6}.btn.next .nn{color:#fff}
 .toast{background:#3b1d48}
+header.appbar .me{display:none!important}
 .chip[aria-pressed=true]{background:var(--pur2);border-color:var(--pur2);color:#fff}
 #swlogin{background:#f3f1f5}
 .swlh{background:#fff;border:1px solid var(--line)}.swlh span{background:#d9d6de}
