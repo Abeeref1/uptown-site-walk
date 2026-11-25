@@ -396,7 +396,9 @@ header.appbar .me{display:none!important}
 .chip[aria-pressed=true]{background:var(--pur2);border-color:var(--pur2);color:#fff}
 #swlogin{background:#f3f1f5}
 .swlh{background:#fff;border:1px solid var(--line)}
-.btn.dark{background:#fff;color:#4a1f5a;border:1px solid #d9c7e3}.swlh span{background:#d9d6de}
+.btn.dark{background:#fff;color:#4a1f5a;border:1px solid #d9c7e3}
+.seg4 button[aria-pressed=true]{background:var(--pur2);color:#fff}
+.lay4 .chip[aria-pressed=true]{background:#fff;color:#1e1e1e;border-color:var(--pur2);box-shadow:inset 0 0 0 1px var(--pur2)}.swlh span{background:#d9d6de}
 @media(max-width:899px){
  nav.tabs{background:#fff!important;border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(0,0,0,.05)}
  nav.tabs button{color:#777}
@@ -644,7 +646,7 @@ const today=()=>{const t=new Date();return new Date(t.getFullYear(),t.getMonth()
 const fmt=d=>d?String(d.getDate()).padStart(2,'0')+' '+MON[d.getMonth()]+' '+String(d.getFullYear()).slice(2):'';
 const fmtS=d=>String(d.getDate()).padStart(2,'0')+' '+MON[d.getMonth()];
 const weekOf=d=>new Date(START.getTime()+Math.max(0,Math.floor(Math.round((d-START)/DAY)/7))*7*DAY);
-const BUILD=['Tower 3','Tower 4','Podium','Basement','Zone 3','Zone 4','Zone 5A','Zone 5B','Tower 2','Site'];
+const BUILD=['Tower 3','Tower 4','Podium','Basement','Tower 2','Site'];
 const LEVELS=['Roof',...Array.from({length:22},(_,i)=>'L'+String(22-i).padStart(2,'0')),'P05','P04','P03','P02','P01','GF','B1','B2','B3','Lifts','Facade','All','External'];
 const SCLS={'Done':'done','On plan':'onplan','Behind':'behind','Not started, due':'ns','Not due':'notdue'};
 let ITEMS=[],EXTRA=[],BYREF={},STATE={},SET={},CALC=new Map(),NAMES={};
@@ -902,7 +904,7 @@ const LV={B3:[-13.5,4.5],B2:[-9,4.5],B1:[-4.5,4.5],GF:[0,6],P01:[6,4],P02:[10,4]
 for(let n=1;n<=22;n++)LV['L'+String(n).padStart(2,'0')]=[26+(n-1)*4.2,4.2];
 const PODL=['B3','B2','B1','GF','P01','P02','P03','P04','P05'];
 const roofBase=b=>26+TOP[b]*4.2;
-const BN={T3:'Tower 3',T4:'Tower 4',Z1:'Zone 1 (under T3)',Z2:'Zone 2 (under T4)',Z3:'Zone 3',Z4:'Zone 4',Z5A:'Zone 5A',Z5B:'Zone 5B'};
+const BN={T3:'Tower 3',T4:'Tower 4',Z1:'Tower 3 (Zone 1)',Z2:'Tower 4 (Zone 2)',Z3:'Podium Zone 3',Z4:'Podium Zone 4',Z5A:'Podium Zone 5A',Z5B:'Podium Zone 5B'};
 const ELO={T3:['Elevation (Long side T2 side) Grid T11 to T5','Elevation (Long side Zone 4 side) Grid T5 to T11','Elevation (Short side Zone 4 side) Grid TH to TL','Elevation (Short side Zone 3 side) Grid TL to TH'],
   T4:['Elevation (Long Side Zone 5 side) Grid TA to TG','Elevation (Long Side Zone 4 side) Grid TG to TA','Elevation (Short Side Zone 4 side) Grid T1 to T4','Elevation (Short Side Zone 4 side) Grid T4 to T1']};
 const SIDES=['S','N','E','W'],SIDEN={S:'south',N:'north',E:'east',W:'west'};

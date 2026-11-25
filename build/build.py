@@ -112,6 +112,10 @@ rep("Uptown Phase 2  |  Weekly Site Walk',56,12)", "Uptown Phase 2  |  Site Walk
 rep("+'   |   Mace PMC, contractor ASC',56,18)", "+'   |   Mace PMC, contractor ASC',84,18)")
 rep("const head={fillColor:[30,30,30]", "const head={fillColor:[110,42,131]")
 
+# 8. zones: Zone 1 = Tower 3, Zone 2 = Tower 4, Zones 3, 4, 5 = Podium (data moved in data.enc)
+rep("const BUILD=['Tower 3','Tower 4','Podium','Basement','Zone 3','Zone 4','Zone 5A','Zone 5B','Tower 2','Site'];", "const BUILD=['Tower 3','Tower 4','Podium','Basement','Tower 2','Site'];")
+rep("Z1:'Zone 1 (under T3)',Z2:'Zone 2 (under T4)',Z3:'Zone 3',Z4:'Zone 4',Z5A:'Zone 5A',Z5B:'Zone 5B'", "Z1:'Tower 3 (Zone 1)',Z2:'Tower 4 (Zone 2)',Z3:'Podium Zone 3',Z4:'Podium Zone 4',Z5A:'Podium Zone 5A',Z5B:'Podium Zone 5B'")
+
 # 6. markup: header tools, overlays, offline line, PWA tags
 rep('<div class="me" id="me"></div>', '<div class="me" id="me"></div>\n  <div class="swx" id="swx"></div>')
 rep('<div class="note hidden" id="note"></div>', '<div class="note hidden" id="note"></div>\n<div class="note hidden" id="swq"></div>')
@@ -171,7 +175,9 @@ header.appbar .me{display:none!important}
 .chip[aria-pressed=true]{background:var(--pur2);border-color:var(--pur2);color:#fff}
 #swlogin{background:#f3f1f5}
 .swlh{background:#fff;border:1px solid var(--line)}
-.btn.dark{background:#fff;color:#4a1f5a;border:1px solid #d9c7e3}.swlh span{background:#d9d6de}
+.btn.dark{background:#fff;color:#4a1f5a;border:1px solid #d9c7e3}
+.seg4 button[aria-pressed=true]{background:var(--pur2);color:#fff}
+.lay4 .chip[aria-pressed=true]{background:#fff;color:#1e1e1e;border-color:var(--pur2);box-shadow:inset 0 0 0 1px var(--pur2)}.swlh span{background:#d9d6de}
 @media(max-width:899px){
  nav.tabs{background:#fff!important;border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(0,0,0,.05)}
  nav.tabs button{color:#777}
