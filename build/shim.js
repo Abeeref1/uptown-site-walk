@@ -50,7 +50,7 @@ const user={
   canEdit:async()=>{await ready;return ME.role==='admin'},
   profiles:async ids=>{if(!NAMES||ids.some(id=>!NAMES[id]))NAMES=await api('names').catch(()=>NAMES||({}));const o={};for(const id of ids)o[id]={name:NAMES[id]||'Someone'};return o}};
 const assets={upload:async blob=>{const r=await api('photo',{method:'POST',body:blob,headers:{'content-type':blob.type||'image/jpeg'}});return{id:r.id}}};
-const downloads={save:async({filename,data})=>{const b=data instanceof Blob?data:new Blob([data]);const f=new File([b],filename,{type:b.type||'application/octet-stream'});
+const downloads={save:async({filename,data})=>{const b=data instanceof Blob?data:new Blob([data]);if(window.SW_CAP){window.SW_CAP.push({filename,blob:b});return}const f=new File([b],filename,{type:b.type||'application/octet-stream'});
   if(matchMedia('(pointer:coarse)').matches&&navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:filename});return}catch(e){if(e&&e.name==='AbortError')throw Object.assign(e,{code:'declined'})}}
   const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=filename;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}};
 window.claude={use:async n=>{await ready;return{db,user,assets,downloads}[n]||null}};
@@ -83,13 +83,34 @@ document.addEventListener('click',async e=>{const t=e.target.closest('button');i
   if(t.id==='swcopy'){navigator.clipboard.writeText(t.dataset.msg).then(()=>{t.textContent='Copied'},()=>{});return}});
 function confirmRm(t){if(t.dataset.sure)return true;t.dataset.sure='1';t.textContent='Tap again to remove';setTimeout(()=>{if(t.isConnected){delete t.dataset.sure;t.textContent='Remove'}},4000);return false}
 function alertBox(m){const s=$('#swtmsg');if(s)s.textContent=m}
-async function team(){const o=$('#swteamov');o.classList.add('show');const box=$('#swtbody');box.innerHTML='<p class="src">Loading…</p>';
+async function team(){const o=$('#swteamov');o.classList.add('show');mailBox();const box=$('#swtbody');box.innerHTML='<p class="src">Loading…</p>';
   try{const list=await api('users');box.innerHTML=`<table class="stack"><thead><tr><th>Name</th><th>Role</th><th></th></tr></thead><tbody>${list.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.role)}</td><td style="white-space:nowrap"><button class="btn" type="button" data-pinu="${esc(u.id)}">New password</button>${u.id===ME.id?'':` <button class="btn" type="button" data-rmu="${esc(u.id)}">Remove</button>`}</td></tr>`).join('')}</tbody></table>`}
   catch(x){box.innerHTML='<p class="src">'+esc(x.message)+'</p>'}}
 document.addEventListener('submit',async e=>{if(e.target.id!=='swadd')return;e.preventDefault();const el=e.target.elements;
   try{const r=await api('users',{method:'POST',body:JSON.stringify({name:el.name.value,role:el.role.value})});e.target.reset();showPin(r)}catch(x){alertBox(x.message)}});
 function showPin(r){const url=location.href.split('#')[0];const msg=`Uptown Phase 2 site walk\n${url}\nPassword for ${r.name}: ${r.pin}`;
   $('#swtmsg').innerHTML=`<div class="howto"><b>Password for ${esc(r.name)}: <span style="font-size:22px;letter-spacing:.12em">${esc(r.pin)}</span></b><span>Send it now. It is shown once.</span><div class="tools"><a class="btn pur" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Send on WhatsApp</a><button class="btn" type="button" id="swcopy" data-msg="${esc(msg)}">Copy</button></div></div>`;team()}
+
+/* email list: who gets walk updates and escalations */
+let MAILS=[],MAILON=false,MFROM='';
+async function mailBox(){const box=$('#swmail');if(!box)return;box.innerHTML='<p class="src">Loading…</p>';
+  try{const m=await api('mail');MAILS=m.list||[];MAILON=m.on;MFROM=m.from;drawMail(MFROM)}catch(x){box.innerHTML='<p class="src">'+esc(x.message)+'</p>'}}
+function drawMail(from){const box=$('#swmail');if(!box)return;
+  box.innerHTML=`<h2 style="margin:8px 0 0;font:700 22px/1.1 'Barlow Semi Condensed',Barlow,sans-serif">Email</h2>
+  <p class="src" style="margin:0"><b>Walk updates</b>: the report when someone presses <b>Email report</b>, and a summary at 6 pm of what the team filled that day. <b>Escalations</b>: items that turn ESCALATE, in one email about 10 minutes after they are saved.</p>
+  <p class="src" style="margin:0;${MAILON?'color:var(--grn)':'color:var(--org)'};font-weight:600">${MAILON?'Email is on. Sent from '+esc(from):'Automatic sending is not switched on yet. Until it is, the Email buttons open your own email app with the report filled in.'}</p>
+  <div style="overflow-x:auto"><table class="stack"><thead><tr><th>Name</th><th>Email</th><th>Walk updates</th><th>Escalations</th><th></th></tr></thead><tbody>
+  ${MAILS.map((x,i)=>`<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.email)}</td><td><label class="tog"><input type="checkbox" data-mk="walk" data-mi="${i}" ${x.walk?'checked':''}> ${x.walk?'On':'Off'}</label></td><td><label class="tog"><input type="checkbox" data-mk="esc" data-mi="${i}" ${x.esc?'checked':''}> ${x.esc?'On':'Off'}</label></td><td><button class="btn" type="button" data-mrm="${i}">Remove</button></td></tr>`).join('')||'<tr><td colspan="5">No one yet. Add the first person below.</td></tr>'}</tbody></table></div>
+  <form class="tools" id="swmadd"><input name="name" placeholder="Name, e.g. Tariq" required maxlength="60" style="flex:1 1 130px"><input name="email" type="email" placeholder="Email address" required style="flex:2 1 220px"><button class="btn pur" type="submit">Add</button></form>
+  ${MAILON&&MAILS.length?'<div class="tools"><button class="btn" type="button" id="swmtest">Send a test email</button></div>':''}<p class="src" id="swmst" style="margin:0;font-weight:600"></p>`}
+async function saveMails(msg){const st=$('#swmst');try{const r=await api('mail/list',{method:'POST',body:JSON.stringify({list:MAILS})});MAILS=r.list;drawMail(MFROM);const s2=$('#swmst');if(s2)s2.textContent=msg||'Saved.'}catch(x){if(st)st.textContent=x.message;mailBox()}}
+document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||t.dataset.mi===undefined)return;const x=MAILS[+t.dataset.mi];if(!x)return;x[t.dataset.mk]=t.checked;
+  saveMails(`${x.name||x.email}: ${t.dataset.mk==='walk'?'walk updates':'escalations'} ${t.checked?'on':'off'}.`)});
+document.addEventListener('submit',e=>{if(e.target.id!=='swmadd')return;e.preventDefault();const el=e.target.elements;
+  MAILS.push({name:el.name.value.trim(),email:el.email.value.trim(),walk:true,esc:true});saveMails(el.name.value.trim()+' added. Walk updates and escalations are on.')});
+document.addEventListener('click',async e=>{const t=e.target.closest&&e.target.closest('button');if(!t)return;
+  if(t.dataset.mrm!==undefined){if(!confirmRm(t))return;MAILS.splice(+t.dataset.mrm,1);saveMails('Removed.');return}
+  if(t.id==='swmtest'){t.disabled=true;const st=$('#swmst');st.textContent='Sending…';try{const r=await api('mail/test',{method:'POST',body:'{}'});st.textContent='Test sent to '+r.to.join(', ')+'. Ask them to check the inbox and the junk folder.'}catch(x){st.textContent=x.message}finally{t.disabled=false}}});
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 start();
-return{data,ready,api}})();
+return{data,ready,api,team,isAdmin:()=>!!ME&&ME.role==='admin',canSend:()=>!!ME&&ME.role!=='viewer'}})();

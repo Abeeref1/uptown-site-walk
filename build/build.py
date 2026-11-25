@@ -28,7 +28,7 @@ for a, b in [('the black <b>Next floor</b>', 'the purple <b>Next floor</b>'), ('
     s = s.replace(a, b)
 # 4. send sheet and report: no email from here, team via PIN
 cut('<div class="howto"><b>Automatic email</b>', '<div class="tools"><button class="btn" type="button" id="sendx">Close</button>',
-    '<div class="howto"><b>Give it to the team</b><span>The admin presses <b>Team</b> at the top, adds the name, and sends the password on WhatsApp in one tap. Walkers fill, viewers only look.</span></div>\n  ')
+    '<div class="howto"><b>Give it to the team</b><span>The admin opens <b>Report</b>, then <b>Team and email</b>, adds the name, and sends the password on WhatsApp in one tap. Walkers fill, viewers only look.</span></div>\n  ')
 cut('<h2 style="margin-top:16px">Email</h2>', "Only the owner and Editors change the addresses.</p>'}", '', incl_end=True)
 # 5. walks: the team starts a walk, entries belong to it
 rep("const ALL=()=>ITEMS.concat(EXTRA);", "const ALL=()=>ITEMS.concat(EXTRA);let WALKS={};\nconst walkList=()=>Object.values(WALKS).filter(w=>w&&w.id&&w.date).sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);")
@@ -48,6 +48,45 @@ rep('<button class="btn ghost" type="button" data-v="4d">${IC.cube} Open 4D</but
 # install card on Home
 cut('${instHide?\'\':`<div class="inst">', '`}`;\n', r"""${instHide||(matchMedia('(display-mode: standalone)').matches||navigator.standalone)?'':`<div class="inst"><span><b>Install it on your phone</b>Opens full screen from an icon, works in the basement and sends saves when signal is back.</span><span class="tools"><button class="btn pur" type="button" id="instgo">Install</button><button class="btn" type="button" id="instx">Later</button></span></div>`}`;
 """, incl_end=True)
+EMAIL_JS = r'''
+/* ---------- email: walk report and escalations ---------- */
+let MAILINFO=null;
+async function mailInfo(){try{MAILINFO=await SW.api('mail')}catch(e){}return MAILINFO}
+const mailNames=k=>{const n=MAILINFO&&MAILINFO[k];return n&&n.length?n.join(', '):''};
+const mailLabel=k=>(k==='walk'?'Email report':'Email escalations')+(mailNames(k)?' to '+mailNames(k):'');
+function mailRefresh(){mailInfo().then(()=>document.querySelectorAll('[data-mailbtn],[data-mailopen]').forEach(b=>{b.textContent=mailLabel(b.dataset.mailbtn||'walk')}))}
+const b64=blob=>new Promise(z=>{const r=new FileReader();r.onload=()=>z(String(r.result).split(',')[1]||'');r.readAsDataURL(blob)});
+function escRows(){return ALL().map(it=>({it,k:CALC.get(it.r)})).filter(x=>x.k.esc==='ESCALATE').sort((a,b)=>(b.k.late||0)-(a.k.late||0))
+  .map(({it,k})=>({b:it.b,l:it.l,w:it.w+(it.loc?' ('+it.loc+')':''),st:k.st,late:k.late,a:k.a??0,p:k.p??0,c:(k.cur&&k.cur.c)||''}))}
+function mailMsg(m){const el=$('#mailst');if(el&&$('#sendov').classList.contains('show'))el.textContent=m;else toast(m)}
+function mailApp(to,subject,body){const b=body.length>1800?body.slice(0,1800)+'\n(more in the app)':body;location.href='mailto:'+(to||[]).join(',')+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(b)}
+const noOne=k=>SW.isAdmin()?'No one gets '+(k==='walk'?'the walk report':'escalations')+' yet. Open Report, then Team and email, and add the person under Email.':'No one is set to get '+(k==='walk'?'the report':'escalations')+'. Ask the admin.';
+async function emailWalk(btn){if(!SW.canSend()){toast('View only.');return}const c=ctx(),t=tally(ALL());if(btn)btn.disabled=true;
+  try{await mailInfo();if(!MAILINFO){mailMsg('No signal. Try again.');return}if(!MAILINFO.walk.length){mailMsg(noOne('walk'));return}
+    const note=(($('#mailnote')||{}).value||'').trim(),wk=fmt(c.wk);
+    if(!MAILINFO.on){mailApp(MAILINFO.walkEmails,'Site walk report: walk of '+wk+' (Uptown Phase 2)',(note?note+'\n\n':'')+reportText()+'\n\nOpen the app: '+location.href.split('#')[0]);mailMsg('Your email app is open with the report. Press Send there.');return}
+    mailMsg('Making the PDF and Excel…');window.SW_CAP=[];
+    try{await makePdf();await makeXlsx()}catch(e){}
+    const got=window.SW_CAP||[];window.SW_CAP=null;const s2=$('#sendst');if(s2)s2.textContent='';
+    const files=await Promise.all(got.map(async f=>({filename:f.filename,content:await b64(f.blob)})));
+    mailMsg('Sending…');
+    const sum={wkLabel:wk,title:(c.walk&&c.walk.title)||'',note,t:{walked:t.walked,walk:t.walk,done:t.done,behind:t.behind,ns:t.ns,esc:t.esc,worst:t.worst},
+      areas:BUILD.map(b=>[b,tally(ALL().filter(i=>i.b===b))]).filter(x=>x[1].n).map(([b,x])=>[b,x.n,x.walked,x.done,x.behind,x.ns,x.esc,x.worst]),
+      top:escRows().slice(0,10),esc:escRows(),text:reportText(),files};
+    const r=await SW.api('mail/walk',{method:'POST',body:JSON.stringify(sum)});
+    mailMsg('Sent to '+r.to.join(', ')+(files.length?' with the PDF and Excel.':'.'));if($('#mailnote'))$('#mailnote').value=''}
+  catch(e){mailMsg(e.code==='no_one'?noOne('walk'):(e.message||'Not sent. Check signal and try again.'))}
+  finally{window.SW_CAP=null;if(btn)btn.disabled=false}}
+async function emailEsc(btn){if(!SW.canSend()){toast('View only.');return}const rows=escRows();if(!rows.length){toast('Nothing to escalate.');return}if(btn)btn.disabled=true;
+  try{await mailInfo();if(!MAILINFO){toast('No signal. Try again.');return}if(!MAILINFO.esc.length){toast(noOne('esc'));return}const wk=fmt(ctx().wk);
+    if(!MAILINFO.on){mailApp(MAILINFO.escEmails,'Escalation list: '+rows.length+' items (Uptown Phase 2, walk of '+wk+')',rows.map(x=>`- ${x.b} ${x.l}: ${x.w}. ${x.late} days late, ${Math.round(x.a)}% of ${Math.round(x.p)}%.${x.c?' '+x.c:''}`).join('\n')+'\n\nOpen the app: '+location.href.split('#')[0]);return}
+    toast('Sending…');const r=await SW.api('mail/esc',{method:'POST',body:JSON.stringify({wkLabel:wk,items:rows})});toast('Escalation list sent to '+r.to.join(', ')+'.')}
+  catch(e){toast(e.code==='no_one'?noOne('esc'):(e.message||'Not sent.'))}finally{if(btn)btn.disabled=false}}
+document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.mailbtn==='walk'){emailWalk(t);return}if(t.dataset.mailbtn==='esc'){emailEsc(t);return}
+  if(t.dataset.mailopen!==undefined){$('#send').click();return}if(t.id==='send'||t.id==='swtx'||t.dataset.v)mailRefresh()});
+SW.ready.then(mailRefresh);
+'''
 newwalk_js = r"""
 /* ---------- new walk ---------- */
 function newWalk(){if(!db||canWrite===false){toast('Only walkers and the admin start a walk.');return}const f=$('#nwf');f.elements.date.value=iso(today());f.elements.title.value='';$('#nwov').classList.add('show')}
@@ -57,7 +96,22 @@ $('#nwf').addEventListener('submit',e=>{e.preventDefault();const el=e.target.ele
   const w={id,date,title:el.title.value.trim()||'Site walk',by:ME.id||null,at:new Date().toISOString()};WALKS={...WALKS,[id]:w};const ws=walkList();ui.wk=ws[ws.length-1].id===id?null:id;
   db.doc('walks/'+id).set(w).then(()=>toast('New walk started: '+fmt(ds(date))),()=>toast('Not saved. Check signal.'));$('#nwov').classList.remove('show');rerender();if(ui.view!=='home')show('home')});
 """
-rep('/* ---------- start ---------- */', newwalk_js + '\n/* ---------- start ---------- */')
+rep('/* ---------- start ---------- */', newwalk_js + EMAIL_JS + '\n/* ---------- start ---------- */')
+
+# 7. email: send sheet, report, issues; fix the send sheet; light PDF header
+rep("$('#sendto').textContent=SET.emails||'the owner';", "")
+rep('<p class="src" style="margin:0">Pick a file, then send it on WhatsApp or email. On the phone it opens the share menu.</p>',
+    '<div class="howto"><b>Email it</b><span>One tap sends the summary, the PDF and the Excel file.</span><label style="margin:6px 0 0">Note for the email (optional)<input id="mailnote" maxlength="1500" placeholder="e.g. T3 L14 slab pour moved to Sunday"></label><div class="tools" style="margin-top:8px"><button class="btn pur" type="button" data-mailbtn="walk">Email report</button></div><p class="src" id="mailst" style="margin:4px 0 0;font-weight:600"></p></div>\n  <p class="src" style="margin:0">Or pick a file and send it on WhatsApp. On the phone it opens the share menu.</p>')
+rep('<div class="box"><h2>Share this walk</h2><div class="tools">', '<div class="box"><h2>Share this walk</h2><div class="tools"><button class="btn pur" type="button" data-mailopen>${esc(mailLabel(\'walk\'))}</button>')
+rep('<button class="btn" type="button" id="copy">Copy report text</button></div>\n</div>',
+    '<button class="btn" type="button" id="copy">Copy report text</button></div>\n</div>${SW.isAdmin()?`<div class="box"><h2>Team and email</h2><p class="src">Add people, make passwords, and choose who gets the walk report and the escalation emails.</p><div class="tools"><button class="btn pur" type="button" id="swteam">Open Team and email</button></div></div>`:\'\'}')
+rep("'to escalate'}</h2>", "'to escalate'}</h2>${SW.canSend()&&rows.length?`<div class=\"tools\" style=\"margin:6px 0\"><button class=\"btn pur\" type=\"button\" data-mailbtn=\"esc\">${esc(mailLabel('esc'))}</button></div>`:''}")
+rep("doc.setFillColor(30,30,30);doc.rect(0,0,W,24,'F');const logo=await blobURL('logo.png');if(logo)doc.addImage(logo,'PNG',10,7,40,6.6);\n  doc.setTextColor(255);",
+    "doc.setFillColor(139,58,163);doc.rect(0,23,W,1.2,'F');const lg1=await blobURL('dmcc.png'),lg2=await blobURL('mace.png');if(lg1)doc.addImage(lg1,'PNG',10,7.5,25,7);doc.setDrawColor(210);doc.line(38.5,7.5,38.5,14.5);if(lg2)doc.addImage(lg2,'PNG',42,8,36.4,6);\n  doc.setTextColor(30);")
+rep("Uptown Phase 2  |  Weekly Site Walk',56,12)", "Uptown Phase 2  |  Site Walk',84,12)")
+rep("+'   |   Mace PMC, contractor ASC',56,18)", "+'   |   Mace PMC, contractor ASC',84,18)")
+rep("const head={fillColor:[30,30,30]", "const head={fillColor:[110,42,131]")
+
 # 6. markup: header tools, overlays, offline line, PWA tags
 rep('<div class="me" id="me"></div>', '<div class="me" id="me"></div>\n  <div class="swx" id="swx"></div>')
 rep('<div class="note hidden" id="note"></div>', '<div class="note hidden" id="note"></div>\n<div class="note hidden" id="swq"></div>')
@@ -71,6 +125,7 @@ overlays = r"""<div class="over" id="swlogin"><form class="sheet swl" id="swf" a
   <h2 style="margin:0;font:700 24px/1.1 'Barlow Semi Condensed',Barlow,sans-serif">Team</h2>
   <form class="tools" id="swadd"><input name="name" placeholder="Person's name" required style="flex:1 1 200px"><select name="role"><option value="walker">Walker (fills)</option><option value="viewer">Viewer (looks)</option><option value="admin">Admin</option></select><button class="btn pur" type="submit">Add and make password</button></form>
   <div id="swtmsg"></div><div id="swtbody" style="overflow-x:auto"></div>
+  <div id="swmail" style="display:grid;gap:10px;border-top:1px solid var(--line);padding-top:10px"></div>
   <div class="tools"><button class="btn" type="button" id="swtx">Close</button></div></div></div>
 <div class="over" id="swih"><div class="sheet" role="dialog" aria-label="Install"><h2 style="margin:0">Install the app</h2>
   <div class="howto"><b>iPhone (Safari)</b><span>Tap Share, then <b>Add to Home Screen</b>.</span></div><div class="howto"><b>Android (Chrome)</b><span>Tap the menu ⋮, then <b>Install app</b> or <b>Add to Home screen</b>.</span></div><div class="howto"><b>Laptop (Chrome or Edge)</b><span>Click the install icon at the right of the address bar.</span></div>
@@ -88,6 +143,8 @@ css = r"""
 #swlogin{background:#141414;z-index:60}.swl{gap:12px}.swl h2{margin:0;font:700 26px/1.1 "Barlow Semi Condensed",Barlow,sans-serif}
 .swlh{background:#141414;border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center}.swlh img{height:22px}.swlh span{width:1px;height:20px;background:#444}
 #swq{background:var(--orgbg);font-weight:600}
+.over .sheet{max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain}
+#swmail .tog{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 @media(max-width:899px){.swx .swb{padding:4px 8px;font-size:13px}.swx #swteam{display:none}.btn.nwb{padding:6px 10px;font-size:14px;flex:none;min-height:38px}.week .wprog{display:none}.hcta .btn{width:100%}.week select{flex:1 1 auto!important;min-width:0;width:0}}
 """
 css += r'''
@@ -113,7 +170,8 @@ header.appbar .me{color:#333}
 header.appbar .me{display:none!important}
 .chip[aria-pressed=true]{background:var(--pur2);border-color:var(--pur2);color:#fff}
 #swlogin{background:#f3f1f5}
-.swlh{background:#fff;border:1px solid var(--line)}.swlh span{background:#d9d6de}
+.swlh{background:#fff;border:1px solid var(--line)}
+.btn.dark{background:#fff;color:#4a1f5a;border:1px solid #d9c7e3}.swlh span{background:#d9d6de}
 @media(max-width:899px){
  nav.tabs{background:#fff!important;border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(0,0,0,.05)}
  nav.tabs button{color:#777}
