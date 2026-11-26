@@ -219,8 +219,13 @@ function walkReportMail(b, u) {
 
 /* ---------- http helpers ---------- */
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.css': 'text/css' };
+const CSP = ["default-src 'self'", "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:", "img-src 'self' data: blob:", "connect-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com", "worker-src 'self' blob:", "manifest-src 'self'",
+  "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'"].concat(process.env.NO_SECURE ? [] : ['upgrade-insecure-requests']).join('; ');
+const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'DENY', 'Content-Security-Policy': CSP,
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains', 'Permissions-Policy': 'camera=(self), geolocation=(), microphone=(), payment=(), usb=()', 'Cross-Origin-Opener-Policy': 'same-origin' };
 function send(res, code, body, type, extra) {
-  res.writeHead(code, { 'Content-Type': type || 'application/json', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', ...(extra || {}) });
+  res.writeHead(code, { 'Content-Type': type || 'application/json', ...SEC, ...(extra || {}) });
   res.end(body);
 }
 const json = (res, code, obj, extra) => send(res, code, JSON.stringify(obj), 'application/json', { 'Cache-Control': 'no-store', ...(extra || {}) });
