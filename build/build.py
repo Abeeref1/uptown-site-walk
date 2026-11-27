@@ -237,6 +237,48 @@ css4 = r"""
 """
 rep('</style>\n<script>new MutationObserver', css4 + '</style>\n<script>new MutationObserver')
 
+
+# 10. walk planner: Plan tab, compare sheet, 4D walk plan mode
+PLAN_JS = open(os.path.join(HERE, 'plan.js')).read()
+rep('/* ---------- start ---------- */', PLAN_JS + '\n/* ---------- start ---------- */')
+s = s.replace("['home','walk','4d','issues','report']", "['home','walk','plan','4d','issues','report']")
+rep("else if(v==='issues')renderIssues();", "else if(v==='issues')renderIssues();else if(v==='plan')PLAN_UI.render();")
+rep("else if(ui.view==='issues')renderIssues();", "else if(ui.view==='issues')renderIssues();else if(ui.view==='plan')PLAN_UI.render();")
+rep('<button type="button" data-v="4d">', '<button type="button" data-v="plan"><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M8.5 12.5l2.2 2.2L15.5 10"/></svg><span>Plan</span></button>\n    <button type="button" data-v="4d">')
+rep('<section id="v-issues" class="hidden"></section>', '<section id="v-plan" class="hidden"></section>\n  <section id="v-issues" class="hidden"></section>')
+rep('<div class="toast" id="toast"', '<div class="over" id="plov"><div class="sheet plsheet" id="plsh"></div></div>\n<div class="toast" id="toast"')
+rep('<button type="button" data-m4="F" aria-pressed="false">Finished design</button>', '<button type="button" data-m4="F" aria-pressed="false">Finished design</button>\n        <button type="button" data-m4="W" aria-pressed="false">Walk plan</button>')
+cssP = """
+/* ---------- walk planner ---------- */
+.plhead{display:grid;gap:10px}.plctl{display:grid;gap:10px;margin-top:12px}
+.plsel{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--mute)}.plsel select{min-height:40px;border:1px solid var(--line);border-radius:9px;padding:6px 8px;background:#fff;max-width:280px;font:inherit;color:var(--ink)}
+.plsum{display:flex;flex-wrap:wrap;gap:8px}.plsum span{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:8px 12px;display:grid;font-size:12px;color:var(--mute);min-width:90px}
+.plsum b{font:700 21px/1.1 'Barlow Semi Condensed',Barlow,sans-serif;color:var(--ink)}
+.plwarn{background:#fff4e5;border-left:3px solid var(--org);padding:8px 10px;margin:0;font-size:14px;border-radius:6px}.plbusy{font-weight:700;color:var(--pur2);margin:0}
+.plist{display:grid;gap:10px;margin-top:12px}@media(min-width:1150px){.plist{grid-template-columns:1fr 1fr}}
+.plc{background:#fff;border:1px solid var(--line);border-left:6px solid #d4ad2a;border-radius:12px;padding:12px 14px;display:grid;gap:7px;align-content:start;box-shadow:0 2px 8px rgba(40,20,60,.04)}
+.plc.p1{border-left-color:var(--red)}.plc.p2{border-left-color:var(--org)}
+.plt{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding-inline-end:28px}.aid{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:2px 7px}.an{font-weight:700}
+.pp{color:#fff;border-radius:6px;padding:2px 7px;font-weight:800;font-size:12px;flex:none}.pp.p1{background:var(--red)}.pp.p2{background:var(--org)}.pp.p3{background:#c9a227}
+.crt{font-size:12px;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:999px;padding:1px 8px}
+.ploc{display:flex;gap:6px;align-items:flex-start;font-size:14px;margin:0}.ploc .ic{width:16px;height:16px;flex:none;margin-top:2px}
+.plr{margin:0;padding:0;list-style:none;display:grid;gap:6px}.plr li{font-size:14px;line-height:1.4}
+.tg{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 6px;margin-inline-end:6px;color:#fff;vertical-align:1px;min-width:10px;min-height:10px}
+.t-claim{background:#742781}.t-crit{background:#c00000}.t-open{background:#0b5f66}.t-missed{background:#e5701a}.t-odd{background:#6b4fa0}.t-gone{background:#5b6770}
+.nxq{margin:0;font-size:13px;background:#f7eefb;border-radius:8px;padding:6px 9px}
+.plsheet{max-width:880px;width:calc(100% - 24px);position:relative;display:block}
+.plsheet .x{position:absolute;right:10px;top:6px;border:0;background:none;font-size:28px;line-height:1;cursor:pointer;color:var(--mute)}
+.plsheet h3{margin:14px 0 6px;font:700 18px/1.2 'Barlow Semi Condensed',Barlow,sans-serif}
+.plt3{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}.plt3 th,.plt3 td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}.plt3 th{background:var(--soft);font-size:13px}
+.plt3 .up{color:var(--grn)}.plt3 .dn{color:var(--red)}
+.plv{margin:0;padding-inline-start:18px;font-size:14px;display:grid;gap:4px}
+.plits{display:grid;gap:6px}.plit{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px}
+.plnx{display:grid;grid-template-columns:1fr 1fr;gap:8px}.plnx label{display:grid;gap:4px;font-size:13px;color:var(--mute)}.plnx .tools{grid-column:1/-1}@media(max-width:640px){.plnx{grid-template-columns:1fr}}
+.pl4{display:grid;gap:4px;margin:6px 0 8px}
+@media(max-width:899px){nav.tabs{grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:0!important}nav.tabs button{min-width:0!important;padding:6px 0 4px!important;font-size:11px!important}nav.tabs button .ic{padding:3px 10px!important}nav.tabs button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}}.plk{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:5px 8px;text-align:left;font:inherit;font-size:13px;cursor:pointer}
+"""
+rep('</style>\n<script>new MutationObserver', cssP + '</style>\n<script>new MutationObserver')
+
 out = os.path.join(ROOT, 'public'); os.makedirs(out, exist_ok=True)
 open(os.path.join(out, 'index.html'), 'w').write(s)
 print('index.html', len(s))

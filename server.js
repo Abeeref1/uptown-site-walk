@@ -99,6 +99,10 @@ function userOf(req) {
 const pub = u => ({ id: u.id, name: u.name, role: u.role });
 
 
+/* ---------- programme issues ---------- */
+const PROG_DIR = F('prog'); try { fs.mkdirSync(PROG_DIR, { recursive: true }); } catch (e) {}
+let PROG = readJSON('prog.json', { list: [] });
+
 /* ---------- email: walk updates and escalations ---------- */
 const MAIL_KEY = process.env.RESEND_API_KEY || '';
 const MAIL_FROM = process.env.MAIL_FROM || 'Uptown Site Walk <sitewalk@pmc-mace.com>';
@@ -316,6 +320,31 @@ async function apiRoute(req, res, p, q) {
     const subject = kind === 'walk' ? `Site walk report: walk of ${clip(b.wkLabel, 40)} (Uptown Phase 2)` : `Escalation list: ${(b.items || []).length} items (Uptown Phase 2, walk of ${clip(b.wkLabel, 40)})`;
     try { await sendMail({ kind, to, subject, html: m.html, text: m.text, attachments: files.length ? files : undefined, replyTo: undefined }); return json(res, 200, { ok: true, to: to.map(x => x.name || x.email) }); }
     catch (e) { return json(res, 502, { error: e.message, code: 'mail' }); }
+  }
+  /* programme issues from ASC: uploaded weekly, compared by the Plan tab */
+  if (p === 'prog' && req.method === 'GET') return json(res, 200, { list: PROG.list });
+  if (p.startsWith('prog/') && req.method === 'GET') {
+    const id = p.slice(5); if (!/^[\w-]{6,40}$/.test(id) || !PROG.list.find(x => x.id === id)) return json(res, 404, { error: 'Issue not found.' });
+    try { return send(res, 200, fs.readFileSync(path.join(PROG_DIR, id + '.json')), 'application/json', { 'Cache-Control': 'private, max-age=86400' }); } catch (e) { return json(res, 404, { error: 'Issue file missing.' }); }
+  }
+  if (p === 'prog' && req.method === 'POST') {
+    if (u.role === 'viewer') return json(res, 403, { error: 'View only.' });
+    let b; try { b = JSON.parse((await body(req, 25e6)).toString() || '{}'); } catch (e) { return json(res, 400, { error: 'The programme could not be read.' }); }
+    const acts = Array.isArray(b.acts) ? b.acts : []; if (acts.length < 5) return json(res, 400, { error: 'No activities found in this file.' });
+    if (acts.length > 30000) return json(res, 400, { error: 'Too many activities in one file.' });
+    const m = b.meta || {}, now = new Date(), id = now.toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
+    const meta = { id, name: String(m.name || 'Programme').slice(0, 120), proj: String(m.proj || '').slice(0, 120), dd: /^\d{4}-\d\d-\d\d$/.test(m.dd) ? m.dd : now.toISOString().slice(0, 10),
+      src: m.src === 'xer' ? 'xer' : 'xlsx', n: acts.length, by: u.id, byName: u.name, at: now.toISOString() };
+    fs.writeFileSync(path.join(PROG_DIR, id + '.json'), JSON.stringify({ meta, acts }));
+    PROG.list.push(meta); PROG.list.sort((a, c) => (a.dd + a.at).localeCompare(c.dd + c.at)); writeJSON('prog.json', PROG);
+    console.log(`programme issue ${id} uploaded by ${u.id}: ${acts.length} activities, data date ${meta.dd}`);
+    return json(res, 200, { ok: true, meta });
+  }
+  if (p.startsWith('prog/') && req.method === 'DELETE') {
+    if (u.role !== 'admin') return json(res, 403, { error: 'Admin only.' });
+    const id = p.slice(5); PROG.list = PROG.list.filter(x => x.id !== id); writeJSON('prog.json', PROG);
+    try { fs.renameSync(path.join(PROG_DIR, id + '.json'), path.join(PROG_DIR, id + '.deleted.json')); } catch (e) {}
+    return json(res, 200, { ok: true, list: PROG.list });
   }
   if (p === 'users') {
     if (u.role !== 'admin') return json(res, 403, { error: 'Admin only.' });

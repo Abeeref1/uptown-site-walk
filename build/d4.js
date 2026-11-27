@@ -3,7 +3,7 @@ const D4=(()=>{
 let P={K:[],A:[]},G=null;
 const EP=Date.UTC(2025,0,1),day4=d=>Math.round((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-EP)/DAY);
 const dOf=n=>{const u=new Date(EP+n*DAY);return new Date(u.getUTCFullYear(),u.getUTCMonth(),u.getUTCDate())};
-const PR={F:{name:'Finished design',col:'#0E6E73'},A:{name:'Actual (walk)',col:'#742781'},T:{name:'Target (R1)',idx:[0,1],col:'#c00000'},U:{name:'20 Nov update',idx:[4,5],col:'#1e1e1e'},B:{name:'Baseline',idx:[2,3],col:'#8A8178'}};
+const PR={W:{name:'Walk plan',col:'#c00000'},F:{name:'Finished design',col:'#0E6E73'},A:{name:'Actual (walk)',col:'#742781'},T:{name:'Target (R1)',idx:[0,1],col:'#c00000'},U:{name:'20 Nov update',idx:[4,5],col:'#1e1e1e'},B:{name:'Baseline',idx:[2,3],col:'#8A8178'}};
 const pcol=p=>p==='U'?'var(--ink)':p==='A'?'var(--pur)':PR[p].col;
 const LAYERS=[{k:'STR',name:'Structure',col:'#B8B2A7'},{k:'STA',name:'Stairs',col:'#7E776E'},{k:'FAC',name:'Façade',col:'#4F8FC9'},{k:'FIT',name:'Fit-out & MEP',col:'#0B5D63'},{k:'VT',name:'Lifts',col:'#6B4FA0'},{k:'LAND',name:'External',col:'#5E8C3A'}];
 const M={mode:'AT',show:{STR:true,STA:true,FAC:true,FIT:true,VT:true,LAND:true},focus:{b:'ALL',z:null,lv:null},under:false,ready:false,loading:null,pin:null,day:null,play:0,intro:0,shadowKey:''};
@@ -70,6 +70,7 @@ function prog(){const d=pday();
 /* colours */
 function look(a,p){const L=a.layer;
   if(p==='F')return L==='VT'?{col:C.VT1,op:.95}:{real:true,op:1};
+  if(p==='W'){const w=(window.PLAN&&window.PLAN.byKey||{})[a.key];if(w)return{col:w.pr===1?C.RED:w.pr===2?C.ORG:C.AMB,op:L==='FAC'?.7:.97,glow:w.pr===1};return L==='STR'||L==='FAC'?{col:C.GHOST,op:L==='FAC'?.05:.035,ghost:true}:null}
   if(a.nop&&p!=='A')return{col:C.NOP,op:L==='FIT'?.55:.6};
   if(p==='G'){if(a.gap==null)return L==='STR'||L==='STA'||L==='FAC'?{col:C.HAZE,op:.06}:null;
     const col=a.gap>=-5?C.GRN:a.gap>=-15?C.ORG:C.RED;return{col,op:L==='FAC'?.55:L==='STR'?1:.9}}
@@ -172,9 +173,9 @@ function render(){pending=false;if(!M.ready||ui.view!=='4d')return;if(!W)size();
   vs.forEach((v,i)=>{paint(v.p);setAspect(v.w/v.h);
     if(!coarse){if(i===0&&M.shadowKey!==sk){renderer.shadowMap.needsUpdate=true;M.shadowKey=sk}}
     renderer.setViewport(v.x,H-v.y-v.h,v.w,v.h);renderer.setScissor(v.x,H-v.y-v.h,v.w,v.h);renderer.clear();renderer.render(scene,camera);
-    const nm=v.p==='G'?'Gap to target':PR[v.p].name,o=v.p==='G'||v.p==='F'?null:mean(wl,a=>v.p==='A'?a.A:a[v.p]);
-    const when=v.p==='A'?'walk of '+fmt(ctx().wk):v.p==='F'?'BSBG BIM model':fmt(dOf(pday()));
-    html+=`<div class="vl4" style="left:${v.x+10}px;top:${v.y+10}px;border-inline-start:4px solid ${v.p==='G'?'var(--red)':pcol(v.p)}"><b>${esc(nm)}</b><span>${v.p==='F'?'Towers 3 and 4, podium, basements':o==null?wl.filter(a=>a.gap<-15).length+' areas more than 15 pts behind':Math.round(o*100)+'% done'} · ${esc(when)}</span></div>`;
+    const nm=v.p==='G'?'Gap to target':PR[v.p].name,o=v.p==='G'||v.p==='F'||v.p==='W'?null:mean(wl,a=>v.p==='A'?a.A:a[v.p]);
+    const when=v.p==='A'?'walk of '+fmt(ctx().wk):v.p==='F'?'BSBG BIM model':v.p==='W'?((window.PLAN&&window.PLAN.issue)||'no programme uploaded'):fmt(dOf(pday()));
+    html+=`<div class="vl4" style="left:${v.x+10}px;top:${v.y+10}px;border-inline-start:4px solid ${v.p==='G'?'var(--red)':pcol(v.p)}"><b>${esc(nm)}</b><span>${v.p==='W'?((window.PLAN&&window.PLAN.n)||0)+' stops to check · red first':v.p==='F'?'Towers 3 and 4, podium, basements':o==null?wl.filter(a=>a.gap<-15).length+' areas more than 15 pts behind':Math.round(o*100)+'% done'} · ${esc(when)}</span></div>`;
     for(const t of ['T3','T4']){if(M.focus.lv||(M.focus.b!=='ALL'&&M.focus.b!==t))continue;const tw=G.towers[t],q=new T.Vector3(tw.c[0],tw.top+4,tw.c[2]).project(camera);if(q.z<1&&q.x>-1&&q.x<1&&q.y>-1&&q.y<1)html+=`<div class="tg4" style="left:${v.x+(q.x+1)/2*v.w}px;top:${v.y+(1-q.y)/2*v.h}px">${t==='T3'?'Tower 3':'Tower 4'}</div>`}
     if(v.x>0)html+=`<div style="position:absolute;left:${v.x}px;top:0;bottom:0;width:1px;background:var(--line)"></div>`;
     if(v.y>0)html+=`<div style="position:absolute;top:${v.y}px;left:0;right:0;height:1px;background:var(--line)"></div>`});
@@ -244,6 +245,7 @@ function tipHTML(a){const gp=a.gap,cls=gp==null?'':gp>=-5?'g':gp>=-15?'o':'r';
   ${gp==null?'':`<tr><td>Gap to target</td><td class="n gp ${cls}">${gp>0?'+':''}${Math.round(gp)} pts</td><td></td></tr>`}</table>
   ${M.day!=null&&M.day!==DAY4?`<p class="src" style="margin:0 0 6px">Programme % read on ${fmt(dOf(pday()))}.</p>`:''}
   ${a.nop?'<p class="src" style="margin:0 0 8px;color:var(--red);font-weight:600">The walk says this is not finished, but ASC’s programme has no remaining activity for it.</p>':''}
+  ${(()=>{const w=(window.PLAN&&window.PLAN.byKey||{})[a.key];return w?`<div class="pl4"><b>Walk plan: ${w.stops.length} stop${w.stops.length>1?'s':''}</b>${w.stops.slice(0,3).map(st=>`<button type="button" class="plk" data-pl="${esc(st.key)}"><span class="pp p${st.pr}">P${st.pr}</span> ${esc(st.id||'Open item')} · ${esc(st.top)}</button>`).join('')}</div>`:''})()}
   ${a.walk?`<button class="btn pur" type="button" data-w4="${esc(a.ref||a.walk)}">Walk it: ${esc(a.walk.replace('|',' · '))}</button>`:'<span class="src">No walk item here. Add one from the Walk tab if needed.</span>'}`}
 function showTip(a,x,y,pin){const t=$('#tip4');t.innerHTML=tipHTML(a);t.style.display='block';M.pin=pin?a:null;
   const tw=Math.min(330,W-20),th=t.offsetHeight||170;t.style.left=Math.max(10,Math.min(x+14,W-tw-10))+'px';t.style.top=Math.max(10,Math.min(y+14,H-th-10))+'px'}
@@ -319,4 +321,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)r
   if(t.dataset.w4){const w=t.dataset.w4;hideTip();stop();if(BYREF[w]){ui.due=false;openItem(w);return}const [b,l]=w.split('|');ui.b=b;ui.l=l;ui.q='';ui.due=false;remember();show('walk');if(innerWidth<900)scrollTo({top:0});return}});
 document.addEventListener('input',e=>{if(e.target.id==='rng4'){stop();setDay(+e.target.value)}});
 document.addEventListener('change',e=>{if(e.target.id==='rng4'){trades();behind()}});
-return{render:render4,draw}})();
+function focusKey(key,mode){const go=()=>{const a=AK[key];if(!a)return;M.mode=mode||M.mode;$$('#seg4 button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m4===M.mode));legend();
+    const b=a.bld==='SITE'?'ALL':a.bld,lv=a.lv&&levelsFor(b).includes(a.lv)?a.lv:null;setFocus({b,z:b==='POD'?a.zone:null,lv})};
+  if(M.ready)go();else ensure().then(()=>setTimeout(go,2700))}
+return{render:render4,draw,keysOf:it=>keysOf(it),facKeys,focusKey,setP:p=>{P=p}}})();
